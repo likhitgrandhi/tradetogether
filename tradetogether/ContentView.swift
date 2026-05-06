@@ -6,56 +6,46 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    private let store = DemoStore.shared
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        TabView {
+            NavigationStack {
+                FeedView(store: store)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
+            .tabItem {
+                Label("Feed", systemImage: "newspaper")
             }
-        } detail: {
-            Text("Select an item")
-        }
-    }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
+            NavigationStack {
+                WatchlistView(store: store)
+            }
+            .tabItem {
+                Label("Watchlist", systemImage: "list.star")
+            }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            NavigationStack {
+                DiscoverView(store: store)
+            }
+            .tabItem {
+                Label("Discover", systemImage: "magnifyingglass")
+            }
+
+            NavigationStack {
+                ProfileView(profile: store.currentUser, posts: store.posts(for: store.currentUser), store: store)
+            }
+            .tabItem {
+                Label("Profile", systemImage: "person.crop.circle")
             }
         }
+        .tint(TradeTheme.ink)
+        .toolbarBackground(TradeTheme.paper, for: .tabBar)
+        .toolbarColorScheme(.light, for: .tabBar)
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
