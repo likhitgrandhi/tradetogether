@@ -46,6 +46,12 @@ enum RiskLevel: String {
     case high = "High"
 }
 
+enum TradeProduct: String, CaseIterable, Hashable {
+    case equity = "Equity"
+    case futures = "Futures"
+    case options = "Options"
+}
+
 struct StockInstrument: Identifiable, Hashable {
     let id: String
     let symbol: String
@@ -62,6 +68,7 @@ struct StockInstrument: Identifiable, Hashable {
     var displaySymbol: String {
         "\(symbol) - \(exchange)"
     }
+
 }
 
 struct AIStockOverview: Hashable {
@@ -99,6 +106,7 @@ struct TradeIdea: Identifiable, Hashable {
     let votes: Int
     let comments: Int
     let returnPercent: Double?
+    let product: TradeProduct
 
     var expectedMovePercent: Double {
         ((target - entry) / entry) * 100
@@ -142,16 +150,38 @@ enum TradeMetrics {
 }
 
 enum TradeTheme {
-    static let ink = Color(red: 0.04, green: 0.04, blue: 0.05)
+    static let ink = Color.black
     static let paper = Color.white
-    static let panel = Color(red: 0.97, green: 0.97, blue: 0.98)
-    static let tile = Color.white
-    static let line = Color(red: 0.91, green: 0.91, blue: 0.93)
-    static let muted = Color(red: 0.58, green: 0.58, blue: 0.62)
-    static let gain = Color(red: 0.03, green: 0.80, blue: 0.17)
-    static let loss = Color(red: 0.82, green: 0.23, blue: 0.34)
+    static let panel = Color(red: 0.980, green: 0.980, blue: 0.980)
+    static let tile = Color(red: 0.961, green: 0.961, blue: 0.961)
+    static let line = Color(red: 0.910, green: 0.910, blue: 0.920)
+    static let muted = Color(red: 0.467, green: 0.467, blue: 0.467)
+    static let tertiary = Color(red: 0.600, green: 0.600, blue: 0.600)
+    static let gain = Color(red: 0.345, green: 0.765, blue: 0.133)
+    static let loss = Color(red: 0.996, green: 0.173, blue: 0.333)
+    static let error = Color(red: 0.929, green: 0.286, blue: 0.337)
     static let gold = Color(red: 0.90, green: 0.58, blue: 0.12)
-    static let chartBlue = Color(red: 0.10, green: 0.18, blue: 0.95)
-    static let brandBlue = Color(red: 0.04, green: 0.10, blue: 0.95)
+    static let chartBlue = Color(red: 0.176, green: 0.498, blue: 0.976)
+    static let brandBlue = Color(red: 0.176, green: 0.498, blue: 0.976)
     static let softPurple = Color(red: 0.55, green: 0.32, blue: 0.96)
+    static let verified = Color(red: 0.000, green: 0.584, blue: 0.965)
+}
+
+extension Font {
+    static let tradeScreenTitle = Font.system(size: 17, weight: .bold)
+    static let tradeDisplayName = Font.system(size: 15, weight: .semibold)
+    static let tradePostBody = Font.system(size: 15, weight: .regular)
+    static let tradeQuotedBody = Font.system(size: 14, weight: .regular)
+    static let tradeHandle = Font.system(size: 14, weight: .regular)
+    static let tradeActionCount = Font.system(size: 13, weight: .regular)
+    static let tradeButton = Font.system(size: 15, weight: .semibold)
+    static let tradeFilterChip = Font.system(size: 14, weight: .semibold)
+}
+
+struct TradePressableStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.78 : 1)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
 }

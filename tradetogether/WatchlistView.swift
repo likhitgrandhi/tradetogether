@@ -9,13 +9,20 @@ import SwiftUI
 
 struct WatchlistView: View {
     let store: DemoStore
+    @State private var selectedStockID: StockInstrument.ID?
+
+    private var visibleItems: [WatchlistItem] {
+        guard let selectedStockID else { return store.watchlist }
+        return store.watchlist.filter { $0.stockID == selectedStockID }
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 WSJMasthead()
                 header
-                ForEach(store.watchlist) { item in
+                stockRail
+                ForEach(visibleItems) { item in
                     let stock = store.stock(id: item.stockID)
                     NavigationLink {
                         StockDetailView(stock: stock, store: store)
@@ -42,6 +49,38 @@ struct WatchlistView: View {
                 .foregroundStyle(TradeTheme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var stockRail: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 12) {
+                StockRailItem(
+                    title: "All",
+                    symbol: "*",
+                    color: TradeTheme.muted.opacity(0.18),
+                    isSelected: selectedStockID == nil
+                ) {
+                    withAnimation(.snappy) {
+                        selectedStockID = nil
+                    }
+                }
+
+                ForEach(store.watchlist) { item in
+                    let stock = store.stock(id: item.stockID)
+                    StockRailItem(
+                        title: stock.symbol,
+                        symbol: String(stock.symbol.prefix(2)),
+                        color: AvatarColor.color(for: stock.id),
+                        isSelected: selectedStockID == stock.id
+                    ) {
+                        withAnimation(.snappy) {
+                            selectedStockID = stock.id
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
     }
 }
 

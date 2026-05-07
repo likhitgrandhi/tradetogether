@@ -6,9 +6,29 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     private let store = DemoStore.shared
+
+    init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundEffect = UIBlurEffect(style: .systemMaterialLight)
+        appearance.backgroundColor = UIColor.white.withAlphaComponent(0.96)
+
+        let itemAppearance = UITabBarItemAppearance()
+        itemAppearance.normal.iconColor = UIColor(white: 0.47, alpha: 1)
+        itemAppearance.selected.iconColor = UIColor.black
+        itemAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.clear]
+        itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.clear]
+        appearance.stackedLayoutAppearance = itemAppearance
+        appearance.inlineLayoutAppearance = itemAppearance
+        appearance.compactInlineLayoutAppearance = itemAppearance
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
 
     var body: some View {
         TabView {
@@ -16,33 +36,41 @@ struct ContentView: View {
                 FeedView(store: store)
             }
             .tabItem {
-                Label("Feed", systemImage: "newspaper")
+                Image(systemName: "house.fill")
             }
 
             NavigationStack {
                 WatchlistView(store: store)
             }
             .tabItem {
-                Label("Watchlist", systemImage: "list.star")
+                Image(systemName: "arrow.2.squarepath")
+            }
+
+            NavigationStack {
+                TradeComposerView(author: store.currentUser, stocks: store.stocks)
+            }
+            .tabItem {
+                Image(systemName: "plus.square")
             }
 
             NavigationStack {
                 DiscoverView(store: store)
             }
             .tabItem {
-                Label("Discover", systemImage: "magnifyingglass")
+                Image(systemName: "magnifyingglass")
             }
 
             NavigationStack {
                 ProfileView(profile: store.currentUser, posts: store.posts(for: store.currentUser), store: store)
             }
             .tabItem {
-                Label("Profile", systemImage: "person.crop.circle")
+                Image(systemName: "person.circle.fill")
             }
         }
         .tint(TradeTheme.ink)
         .toolbarBackground(TradeTheme.paper, for: .tabBar)
         .toolbarColorScheme(.light, for: .tabBar)
+        .preferredColorScheme(.light)
     }
 }
 
