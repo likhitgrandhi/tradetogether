@@ -6,12 +6,21 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct FeedView: View {
     let store: DemoStore
     @State private var selectedTab: FeedTab = .posts
     @State private var selectedStockID: StockInstrument.ID?
     @State private var selectedProfileID: TraderProfile.ID?
+    @State private var pullDistance: CGFloat = 0
+    @State private var isRefreshing = false
+    @State private var didPrimeRefreshHaptic = false
+
+    private let refreshThreshold: CGFloat = 86
+    private var logoPullProgress: CGFloat {
+        isRefreshing ? 1 : min(max(pullDistance / refreshThreshold, 0), 1)
+    }
 
     private var visiblePosts: [TradeIdea] {
         switch selectedTab {
@@ -28,10 +37,19 @@ struct FeedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            WSJMasthead()
+            WSJMasthead(logoPullProgress: logoPullProgress, isRefreshing: isRefreshing)
                 .zIndex(2)
 
             ScrollView {
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(
+                            key: FeedPullDistancePreferenceKey.self,
+                            value: max(proxy.frame(in: .named("FeedScroll")).minY, 0)
+                        )
+                }
+                .frame(height: 0)
+
                 LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                     Section {
                         postList
@@ -40,9 +58,37 @@ struct FeedView: View {
                     }
                 }
             }
+            .coordinateSpace(name: "FeedScroll")
+            .refreshable {
+                await performRefresh()
+            }
+            .onPreferenceChange(FeedPullDistancePreferenceKey.self) { value in
+                pullDistance = value
+                if value >= refreshThreshold, !didPrimeRefreshHaptic {
+                    didPrimeRefreshHaptic = true
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                }
+                if value < 6, !isRefreshing {
+                    didPrimeRefreshHaptic = false
+                }
+            }
         }
         .background(TradeTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func performRefresh() async {
+        await MainActor.run {
+            isRefreshing = true
+            pullDistance = refreshThreshold
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+        try? await Task.sleep(for: .milliseconds(650))
+        await MainActor.run {
+            isRefreshing = false
+            pullDistance = 0
+            didPrimeRefreshHaptic = false
+        }
     }
 
     private var stickyFeedHeader: some View {
@@ -212,6 +258,14 @@ struct FeedView: View {
         .padding(.top, 22)
         .padding(.bottom, 6)
         .background(TradeTheme.paper)
+    }
+}
+
+private struct FeedPullDistancePreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
@@ -438,7 +492,7 @@ struct PostDetailView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(TradeTheme.brandBlue)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.black)
 
                         NavigationLink {
                             ProfileView(profile: author, posts: store.posts(for: author), store: store)

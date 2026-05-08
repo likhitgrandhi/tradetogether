@@ -43,9 +43,123 @@ struct MarketTapeView: View {
     }
 }
 
+struct UpDownLogo: View {
+    var pullProgress: CGFloat = 0
+    var isRefreshing = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var clampedProgress: CGFloat {
+        min(max(pullProgress, 0), 1)
+    }
+
+    var body: some View {
+        let progress = clampedProgress
+
+        ZStack {
+            UpArrowShape()
+                .fill(TradeTheme.ink.opacity(1 - Double(progress) * 0.36))
+            DownArrowShape()
+                .fill(TradeTheme.ink.opacity(1 - Double(progress) * 0.36))
+
+            UpArrowShape()
+                .fill(TradeTheme.gain)
+                .mask(alignment: .bottom) {
+                    Rectangle()
+                        .frame(height: 34 * progress)
+                }
+                .opacity(progress)
+
+            DownArrowShape()
+                .fill(TradeTheme.loss)
+                .mask(alignment: .top) {
+                    Rectangle()
+                        .frame(height: 34 * progress)
+                }
+                .opacity(progress)
+        }
+        .frame(width: 25, height: 34)
+        .rotationEffect(isRefreshing && !reduceMotion ? .degrees(360) : .zero)
+        .scaleEffect(1 + progress * 0.08)
+        .animation(.spring(response: 0.26, dampingFraction: 0.74), value: progress)
+        .animation(isRefreshing && !reduceMotion ? .linear(duration: 0.95).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+        .accessibilityLabel("Seek")
+    }
+}
+
+private struct UpArrowShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        LogoPathBuilder.path(in: rect) { path in
+            path.move(to: CGPoint(x: 9.5, y: 27.3))
+            path.addCurve(to: CGPoint(x: 35.0, y: 7.8), control1: CGPoint(x: 18.6, y: 21.4), control2: CGPoint(x: 27.4, y: 14.9))
+            path.addCurve(to: CGPoint(x: 45.2, y: 2.3), control1: CGPoint(x: 38.3, y: 4.8), control2: CGPoint(x: 41.0, y: 1.9))
+            path.addCurve(to: CGPoint(x: 52.1, y: 6.0), control1: CGPoint(x: 48.0, y: 2.5), control2: CGPoint(x: 50.3, y: 3.9))
+            path.addCurve(to: CGPoint(x: 55.5, y: 11.8), control1: CGPoint(x: 53.6, y: 7.6), control2: CGPoint(x: 54.4, y: 9.9))
+            path.addCurve(to: CGPoint(x: 66.9, y: 30.4), control1: CGPoint(x: 59.0, y: 18.4), control2: CGPoint(x: 62.7, y: 24.5))
+            path.addCurve(to: CGPoint(x: 73.9, y: 40.0), control1: CGPoint(x: 69.2, y: 33.7), control2: CGPoint(x: 71.6, y: 37.2))
+            path.addCurve(to: CGPoint(x: 75.8, y: 45.9), control1: CGPoint(x: 75.3, y: 41.8), control2: CGPoint(x: 76.0, y: 43.6))
+            path.addCurve(to: CGPoint(x: 68.9, y: 52.0), control1: CGPoint(x: 75.4, y: 49.6), control2: CGPoint(x: 72.5, y: 52.1))
+            path.addCurve(to: CGPoint(x: 58.7, y: 51.8), control1: CGPoint(x: 65.4, y: 51.9), control2: CGPoint(x: 61.9, y: 50.0))
+            path.addCurve(to: CGPoint(x: 55.0, y: 58.7), control1: CGPoint(x: 56.1, y: 53.2), control2: CGPoint(x: 55.4, y: 56.0))
+            path.addCurve(to: CGPoint(x: 50.9, y: 85.2), control1: CGPoint(x: 53.5, y: 67.1), control2: CGPoint(x: 54.2, y: 76.9))
+            path.addCurve(to: CGPoint(x: 44.3, y: 93.2), control1: CGPoint(x: 49.5, y: 88.4), control2: CGPoint(x: 47.1, y: 91.3))
+            path.addCurve(to: CGPoint(x: 24.3, y: 93.9), control1: CGPoint(x: 38.7, y: 97.1), control2: CGPoint(x: 30.0, y: 97.4))
+            path.addCurve(to: CGPoint(x: 16.8, y: 68.7), control1: CGPoint(x: 15.3, y: 88.8), control2: CGPoint(x: 14.5, y: 78.6))
+            path.addCurve(to: CGPoint(x: 19.7, y: 53.9), control1: CGPoint(x: 17.9, y: 63.9), control2: CGPoint(x: 19.1, y: 59.1))
+            path.addCurve(to: CGPoint(x: 17.9, y: 46.2), control1: CGPoint(x: 20.0, y: 51.0), control2: CGPoint(x: 20.1, y: 48.4))
+            path.addCurve(to: CGPoint(x: 9.5, y: 43.3), control1: CGPoint(x: 15.9, y: 44.0), control2: CGPoint(x: 12.6, y: 43.9))
+            path.addCurve(to: CGPoint(x: 4.5, y: 31.7), control1: CGPoint(x: 3.5, y: 42.6), control2: CGPoint(x: 1.1, y: 36.2))
+            path.addCurve(to: CGPoint(x: 9.5, y: 27.5), control1: CGPoint(x: 5.8, y: 30.0), control2: CGPoint(x: 7.6, y: 28.7))
+            path.addLine(to: CGPoint(x: 9.5, y: 27.3))
+            path.closeSubpath()
+        }
+    }
+}
+
+private struct DownArrowShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        LogoPathBuilder.path(in: rect) { path in
+            path.move(to: CGPoint(x: 113.0, y: 135.3))
+            path.addCurve(to: CGPoint(x: 86.2, y: 152.7), control1: CGPoint(x: 103.8, y: 140.7), control2: CGPoint(x: 94.6, y: 146.0))
+            path.addCurve(to: CGPoint(x: 72.0, y: 160.5), control1: CGPoint(x: 80.5, y: 157.1), control2: CGPoint(x: 77.8, y: 160.9))
+            path.addCurve(to: CGPoint(x: 63.6, y: 154.4), control1: CGPoint(x: 68.1, y: 160.0), control2: CGPoint(x: 65.6, y: 158.6))
+            path.addCurve(to: CGPoint(x: 46.4, y: 121.9), control1: CGPoint(x: 59.4, y: 145.2), control2: CGPoint(x: 53.5, y: 134.0))
+            path.addCurve(to: CGPoint(x: 44.2, y: 114.9), control1: CGPoint(x: 44.9, y: 119.5), control2: CGPoint(x: 44.1, y: 117.6))
+            path.addCurve(to: CGPoint(x: 51.4, y: 107.3), control1: CGPoint(x: 44.4, y: 111.4), control2: CGPoint(x: 47.1, y: 107.6))
+            path.addCurve(to: CGPoint(x: 60.0, y: 108.7), control1: CGPoint(x: 54.7, y: 107.3), control2: CGPoint(x: 57.6, y: 108.9))
+            path.addCurve(to: CGPoint(x: 65.0, y: 105.8), control1: CGPoint(x: 62.7, y: 108.5), control2: CGPoint(x: 64.4, y: 107.1))
+            path.addCurve(to: CGPoint(x: 69.4, y: 84.6), control1: CGPoint(x: 66.9, y: 103.1), control2: CGPoint(x: 68.2, y: 93.3))
+            path.addCurve(to: CGPoint(x: 86.9, y: 66.2), control1: CGPoint(x: 70.9, y: 75.3), control2: CGPoint(x: 76.5, y: 66.9))
+            path.addCurve(to: CGPoint(x: 106.2, y: 78.0), control1: CGPoint(x: 96.6, y: 65.4), control2: CGPoint(x: 104.1, y: 71.0))
+            path.addCurve(to: CGPoint(x: 101.7, y: 106.1), control1: CGPoint(x: 108.7, y: 86.2), control2: CGPoint(x: 104.9, y: 94.1))
+            path.addCurve(to: CGPoint(x: 103.2, y: 117.5), control1: CGPoint(x: 100.6, y: 110.9), control2: CGPoint(x: 100.0, y: 114.5))
+            path.addCurve(to: CGPoint(x: 110.9, y: 120.5), control1: CGPoint(x: 105.1, y: 119.1), control2: CGPoint(x: 107.8, y: 119.8))
+            path.addCurve(to: CGPoint(x: 113.0, y: 133.3), control1: CGPoint(x: 117.6, y: 121.8), control2: CGPoint(x: 118.9, y: 129.4))
+            path.addLine(to: CGPoint(x: 113.0, y: 135.3))
+            path.closeSubpath()
+        }
+    }
+}
+
+private enum LogoPathBuilder {
+    static func path(in rect: CGRect, build: (inout Path) -> Void) -> Path {
+        let viewBox = CGSize(width: 120, height: 162.4)
+        let scale = min(rect.width / viewBox.width, rect.height / viewBox.height)
+        let xOffset = rect.midX - viewBox.width * scale / 2
+        let yOffset = rect.midY - viewBox.height * scale / 2
+        var source = Path()
+        build(&source)
+        return source.applying(
+            CGAffineTransform(translationX: xOffset, y: yOffset)
+                .scaledBy(x: scale, y: scale)
+        )
+    }
+}
+
 struct WSJMasthead: View {
     @Environment(\.dismiss) private var dismiss
     var showBackHint = false
+    var logoPullProgress: CGFloat = 0
+    var isRefreshing = false
 
     var body: some View {
         HStack {
@@ -60,36 +174,24 @@ struct WSJMasthead: View {
                     .font(.title3)
                     .foregroundStyle(TradeTheme.ink)
                 }
-                .buttonStyle(.plain)
+                    .buttonStyle(.plain)
                 .frame(width: 56, alignment: .leading)
             } else {
-                Circle()
-                    .fill(AvatarColor.color(for: "seek"))
-                    .frame(width: 34, height: 34)
-                    .overlay {
-                        Text("S")
-                            .font(.headline.weight(.black))
-                            .foregroundStyle(.white)
-                    }
-                    .frame(width: 56, alignment: .leading)
+                Color.clear
+                    .frame(width: 56, height: 34)
             }
 
             Spacer()
-            VStack(spacing: 8) {
-                Text("Seek")
-                    .font(.tradeScreenTitle)
-                    .foregroundStyle(TradeTheme.ink)
-            }
+            UpDownLogo(pullProgress: logoPullProgress, isRefreshing: isRefreshing)
             Spacer()
 
             Image(systemName: showBackHint ? "magnifyingglass" : "bubble.right")
                 .font(.system(size: 24, weight: .regular))
                 .foregroundStyle(TradeTheme.ink)
-                .frame(width: 56, alignment: .trailing)
+                .frame(width: 56, height: 34, alignment: .trailing)
         }
+        .frame(height: 52)
         .padding(.horizontal, 18)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
         .background(TradeTheme.paper)
     }
 }
@@ -411,21 +513,22 @@ struct TradeIdeaCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(alignment: .center, spacing: 12) {
-                    TraderAvatar(profile: author, size: 36)
-                    authorLine
-                }
+            HStack(alignment: .top, spacing: 10) {
+                postAvatar
 
-                tradeActivityLine
-                postCopy
-                TradeTicketView(post: post, stock: stock)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                actionRow
+                VStack(alignment: .leading, spacing: 8) {
+                    authorLine
+                    postCopy
+                    tradeContextLine
+                    TradeTicketView(post: post, stock: stock)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    actionRow
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
-            .padding(.top, 16)
+            .padding(.top, 14)
             .padding(.bottom, 12)
 
             Rectangle()
@@ -436,21 +539,33 @@ struct TradeIdeaCard: View {
         .accessibilityElement(children: .contain)
     }
 
+    private var postAvatar: some View {
+        TraderAvatar(profile: author, size: 40)
+            .overlay(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(TradeTheme.ink)
+                    .frame(width: 19, height: 19)
+                    .overlay {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(TradeTheme.paper)
+                    }
+                    .overlay {
+                        Circle()
+                            .stroke(TradeTheme.paper, lineWidth: 2)
+                    }
+                    .offset(x: 4, y: 4)
+            }
+    }
+
     private var authorLine: some View {
         HStack(alignment: .center, spacing: 6) {
             Text(author.handle)
-                .font(.tradeDisplayName)
+                .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(TradeTheme.ink)
                 .lineLimit(1)
-            if let stats {
-                Text("(WR: \(winRateText(stats.winRate)))")
-                    .font(.tradeActionCount.weight(.semibold))
-                    .foregroundStyle(TradeTheme.gain)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
             Text(post.postedAgo)
-                .font(.tradeHandle)
+                .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(TradeTheme.muted)
             Spacer(minLength: 0)
             Image(systemName: "ellipsis")
@@ -459,30 +574,42 @@ struct TradeIdeaCard: View {
         }
     }
 
-    private var tradeActivityLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
-            Text(tradeStatusPhrase)
-            Text(stock.symbol)
-                .fontWeight(.semibold)
-        }
-        .font(.tradePostBody.weight(.semibold))
-        .foregroundStyle(TradeTheme.ink)
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
     private var postCopy: some View {
-        Text("\(post.title). \(post.thesis)")
-            .font(.tradePostBody)
-            .lineSpacing(5)
+        Text(postNarrative)
+            .font(.system(size: 14, weight: .regular))
+            .lineSpacing(3)
             .foregroundStyle(TradeTheme.ink)
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    private var tradeContextLine: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(tradeStatusPhrase)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(TradeTheme.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+            if let stats {
+                Text("WR: \(winRateText(stats.winRate))")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(TradeTheme.gain))
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var postNarrative: String {
+        "\(post.title)\n\(post.thesis)"
+    }
+
     private var tradeStatusPhrase: String {
         if post.status.isClosed {
-            return "\(post.status.rawValue) \(post.direction.rawValue.lowercased()) \(productName.lowercased()) in"
+            return "\(post.status.rawValue) \(post.direction.rawValue.lowercased()) \(productName.lowercased()) in \(stock.symbol)"
         }
-        return "Opened \(post.direction.rawValue.lowercased()) \(productName.lowercased()) in"
+        return "Opened \(post.direction.rawValue.lowercased()) \(productName.lowercased()) in \(stock.symbol)"
     }
 
     private var productName: String {
@@ -494,7 +621,7 @@ struct TradeIdeaCard: View {
     }
 
     private var actionRow: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 26) {
             TradeActionButton(
                 icon: isLiked ? "heart.fill" : "heart",
                 count: post.votes + (isLiked ? 1 : 0),
@@ -507,16 +634,16 @@ struct TradeIdeaCard: View {
             TradeActionButton(icon: "bubble.left", count: post.comments) {}
             TradeActionButton(
                 icon: isReposted ? "arrow.2.squarepath.circle.fill" : "arrow.2.squarepath",
-                count: nil
+                count: isReposted ? 1 : nil
             ) {
                 withOptionalSpring {
                     isReposted.toggle()
                 }
             }
-            TradeActionButton(icon: "paperplane", count: nil) {}
+            TradeActionButton(icon: "paperplane", count: shareCount) {}
             Spacer(minLength: 0)
         }
-        .padding(.top, 1)
+        .padding(.top, 2)
     }
 
     private func withOptionalSpring(_ updates: @escaping () -> Void) {
@@ -529,6 +656,10 @@ struct TradeIdeaCard: View {
 
     private func winRateText(_ winRate: Int) -> String {
         String(format: "%.1f%%", Double(winRate))
+    }
+
+    private var shareCount: Int {
+        max(1, post.comments / 2)
     }
 }
 

@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import UIKit
 
 enum MarketRegion: String, CaseIterable {
     case us = "US"
@@ -150,21 +151,28 @@ enum TradeMetrics {
 }
 
 enum TradeTheme {
-    static let ink = Color.black
-    static let paper = Color.white
-    static let panel = Color(red: 0.980, green: 0.980, blue: 0.980)
-    static let tile = Color(red: 0.961, green: 0.961, blue: 0.961)
-    static let line = Color(red: 0.910, green: 0.910, blue: 0.920)
-    static let muted = Color(red: 0.467, green: 0.467, blue: 0.467)
-    static let tertiary = Color(red: 0.600, green: 0.600, blue: 0.600)
-    static let gain = Color(red: 0.345, green: 0.765, blue: 0.133)
-    static let loss = Color(red: 0.996, green: 0.173, blue: 0.333)
-    static let error = Color(red: 0.929, green: 0.286, blue: 0.337)
-    static let gold = Color(red: 0.90, green: 0.58, blue: 0.12)
-    static let chartBlue = Color(red: 0.176, green: 0.498, blue: 0.976)
-    static let brandBlue = Color(red: 0.176, green: 0.498, blue: 0.976)
-    static let softPurple = Color(red: 0.55, green: 0.32, blue: 0.96)
-    static let verified = Color(red: 0.000, green: 0.584, blue: 0.965)
+    static let ink = adaptive(light: UIColor.black, dark: UIColor.white)
+    static let paper = adaptive(light: UIColor.white, dark: UIColor(red: 0.071, green: 0.071, blue: 0.071, alpha: 1))
+    static let panel = adaptive(light: UIColor(red: 0.980, green: 0.980, blue: 0.980, alpha: 1), dark: UIColor(red: 0.094, green: 0.094, blue: 0.094, alpha: 1))
+    static let tile = adaptive(light: UIColor(red: 0.961, green: 0.961, blue: 0.961, alpha: 1), dark: UIColor(red: 0.157, green: 0.157, blue: 0.157, alpha: 1))
+    static let elevated = adaptive(light: UIColor.white, dark: UIColor(red: 0.243, green: 0.243, blue: 0.243, alpha: 1))
+    static let line = adaptive(light: UIColor(red: 0.910, green: 0.910, blue: 0.920, alpha: 1), dark: UIColor(red: 0.165, green: 0.165, blue: 0.165, alpha: 1))
+    static let muted = adaptive(light: UIColor(red: 0.467, green: 0.467, blue: 0.467, alpha: 1), dark: UIColor(red: 0.702, green: 0.702, blue: 0.702, alpha: 1))
+    static let tertiary = adaptive(light: UIColor(red: 0.600, green: 0.600, blue: 0.600, alpha: 1), dark: UIColor(red: 0.416, green: 0.416, blue: 0.416, alpha: 1))
+    static let gain = adaptive(light: UIColor(red: 0.345, green: 0.765, blue: 0.133, alpha: 1), dark: UIColor(red: 0.114, green: 0.725, blue: 0.329, alpha: 1))
+    static let loss = adaptive(light: UIColor(red: 0.996, green: 0.173, blue: 0.333, alpha: 1), dark: UIColor(red: 0.945, green: 0.369, blue: 0.424, alpha: 1))
+    static let error = adaptive(light: UIColor(red: 0.929, green: 0.286, blue: 0.337, alpha: 1), dark: UIColor(red: 0.945, green: 0.369, blue: 0.424, alpha: 1))
+    static let gold = adaptive(light: UIColor(red: 0.90, green: 0.58, blue: 0.12, alpha: 1), dark: UIColor(red: 0.94, green: 0.67, blue: 0.24, alpha: 1))
+    static let chartBlue = adaptive(light: UIColor(red: 0.176, green: 0.498, blue: 0.976, alpha: 1), dark: UIColor(red: 0.60, green: 0.76, blue: 1.00, alpha: 1))
+    static let brandBlue = adaptive(light: UIColor(red: 0.176, green: 0.498, blue: 0.976, alpha: 1), dark: UIColor(red: 0.114, green: 0.725, blue: 0.329, alpha: 1))
+    static let softPurple = adaptive(light: UIColor(red: 0.55, green: 0.32, blue: 0.96, alpha: 1), dark: UIColor(red: 0.63, green: 0.49, blue: 0.98, alpha: 1))
+    static let verified = adaptive(light: UIColor(red: 0.000, green: 0.584, blue: 0.965, alpha: 1), dark: UIColor(red: 0.64, green: 0.76, blue: 1.00, alpha: 1))
+
+    private static func adaptive(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark ? dark : light
+        })
+    }
 }
 
 extension Font {

@@ -59,7 +59,7 @@ struct DiscoverView: View {
         .background(TradeTheme.paper.ignoresSafeArea())
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.light, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .searchable(text: $query, prompt: "Search AAPL, RELIANCE, traders")
     }
 

@@ -14,12 +14,12 @@ struct ContentView: View {
     init() {
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        appearance.backgroundEffect = UIBlurEffect(style: .systemMaterialLight)
-        appearance.backgroundColor = UIColor.white.withAlphaComponent(0.96)
+        appearance.backgroundEffect = UIBlurEffect(style: .systemMaterialDark)
+        appearance.backgroundColor = UIColor(red: 0.071, green: 0.071, blue: 0.071, alpha: 0.92)
 
         let itemAppearance = UITabBarItemAppearance()
-        itemAppearance.normal.iconColor = UIColor(white: 0.47, alpha: 1)
-        itemAppearance.selected.iconColor = UIColor.black
+        itemAppearance.normal.iconColor = UIColor(red: 0.702, green: 0.702, blue: 0.702, alpha: 1)
+        itemAppearance.selected.iconColor = UIColor.white
         itemAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.clear]
         itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.clear]
         appearance.stackedLayoutAppearance = itemAppearance
@@ -69,8 +69,8 @@ struct ContentView: View {
         }
         .tint(TradeTheme.ink)
         .toolbarBackground(TradeTheme.paper, for: .tabBar)
-        .toolbarColorScheme(.light, for: .tabBar)
-        .preferredColorScheme(.light)
+        .toolbarColorScheme(.dark, for: .tabBar)
+        .preferredColorScheme(.dark)
     }
 }
 
