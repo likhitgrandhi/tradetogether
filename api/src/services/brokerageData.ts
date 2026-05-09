@@ -43,6 +43,32 @@ export class BrokerageDataService {
     return (data ?? []) as BrokerageAccountRecord[];
   }
 
+  async removeConnection(
+    user: AuthenticatedUser,
+    connectionId: string
+  ): Promise<{ removed: true }> {
+    const connection = await this.getConnection(user, connectionId);
+    const credentials = await this.snaptradeUsers.getCredentials(user);
+
+    await this.snaptrade.removeConnection({
+      userId: credentials.snapTradeUserId,
+      userSecret: credentials.userSecret,
+      authorizationId: connection.provider_connection_id
+    });
+
+    const { error } = await this.db
+      .from("brokerage_connections")
+      .delete()
+      .eq("seek_user_id", user.id)
+      .eq("id", connectionId);
+
+    if (error) {
+      throw new Error(`Failed to remove connection: ${error.message}`);
+    }
+
+    return { removed: true };
+  }
+
   async syncConnectionsAndAccounts(user: AuthenticatedUser): Promise<{
     connections: BrokerageConnectionRecord[];
     accounts: BrokerageAccountRecord[];
@@ -196,6 +222,27 @@ export class BrokerageDataService {
     }
 
     return data as BrokerageAccountRecord;
+  }
+
+  private async getConnection(
+    user: AuthenticatedUser,
+    connectionId: string
+  ): Promise<BrokerageConnectionRecord> {
+    const { data, error } = await this.db
+      .from("brokerage_connections")
+      .select("*")
+      .eq("seek_user_id", user.id)
+      .eq("id", connectionId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to load connection: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error("Connection not found");
+    }
+
+    return data as BrokerageConnectionRecord;
   }
 
   private mapConnection(seekUserId: string, raw: JsonRecord): JsonRecord {

@@ -46,6 +46,8 @@ Apply `../supabase/migrations/202605090001_initial_real_data.sql` to a Supabase 
   - Pulls SnapTrade connections and accounts into local tables.
 - `GET /brokerage/connections`
   - Lists the authenticated user's linked brokerages.
+- `DELETE /brokerage/connections/:connectionId`
+  - Revokes the SnapTrade brokerage authorization and removes local connection data.
 - `GET /brokerage/accounts`
   - Lists the authenticated user's brokerage accounts.
 - `POST /brokerage/accounts/:accountId/sync`

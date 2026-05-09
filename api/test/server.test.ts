@@ -56,7 +56,8 @@ describe("api server", () => {
     const snaptrade: SnapTradeGateway = {
       checkStatus: vi.fn().mockResolvedValue({ online: true, version: 153 }),
       registerUser: vi.fn(),
-      createPortalLink: vi.fn()
+      createPortalLink: vi.fn(),
+      removeConnection: vi.fn()
     };
     const app = await createServer({
       config: testConfig,
@@ -81,7 +82,8 @@ describe("api server", () => {
       snaptrade: {
         checkStatus: vi.fn(),
         registerUser: vi.fn(),
-        createPortalLink: vi.fn()
+        createPortalLink: vi.fn(),
+        removeConnection: vi.fn()
       },
       authenticate: async () => ({ id: "user-1", email: "u@example.com" })
     });
@@ -105,7 +107,8 @@ describe("api server", () => {
         userId: "seek_user1",
         userSecret: "snaptrade-secret"
       }),
-      createPortalLink: vi.fn()
+      createPortalLink: vi.fn(),
+      removeConnection: vi.fn()
     };
     const app = await createServer({
       config: testConfig,
@@ -142,7 +145,8 @@ describe("api server", () => {
       createPortalLink: vi.fn().mockResolvedValue({
         redirectURI: "https://app.snaptrade.com/snapTrade/redeemToken?token=test",
         sessionId: "session-1"
-      })
+      }),
+      removeConnection: vi.fn()
     };
     const app = await createServer({
       config: testConfig,
@@ -178,7 +182,8 @@ describe("api server", () => {
       snaptrade: {
         checkStatus: vi.fn(),
         registerUser: vi.fn(),
-        createPortalLink: vi.fn()
+        createPortalLink: vi.fn(),
+        removeConnection: vi.fn()
       },
       authenticate: async () => null
     });

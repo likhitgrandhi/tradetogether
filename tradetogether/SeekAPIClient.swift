@@ -281,6 +281,15 @@ struct SeekAPIClient {
         return (response.connections, response.accounts)
     }
 
+    func connections() async throws -> [SeekBrokerageConnection] {
+        let response: ConnectionsResponse = try await send(path: "/brokerage/connections", method: "GET")
+        return response.connections
+    }
+
+    func removeConnection(id: String) async throws {
+        let _: EmptyResponse = try await send(path: "/brokerage/connections/\(id)", method: "DELETE")
+    }
+
     func accounts() async throws -> [SeekBrokerageAccount] {
         let response: AccountsResponse = try await send(path: "/brokerage/accounts", method: "GET")
         return response.accounts
@@ -347,6 +356,10 @@ private struct EmptyResponse: Decodable {}
 private struct SyncConnectionsResponse: Decodable {
     let connections: [SeekBrokerageConnection]
     let accounts: [SeekBrokerageAccount]
+}
+
+private struct ConnectionsResponse: Decodable {
+    let connections: [SeekBrokerageConnection]
 }
 
 private struct AccountsResponse: Decodable {

@@ -16,6 +16,11 @@ export interface SnapTradeGateway {
     customRedirect: string;
   }): Promise<SnapTradePortalLink>;
   listConnections(input: { userId: string; userSecret: string }): Promise<JsonRecord[]>;
+  removeConnection(input: {
+    userId: string;
+    userSecret: string;
+    authorizationId: string;
+  }): Promise<void>;
   listAccounts(input: {
     userId: string;
     userSecret: string;
@@ -86,6 +91,18 @@ export class SnapTradeSdkGateway implements SnapTradeGateway {
       userSecret: input.userSecret
     });
     return asRecords(response.data);
+  }
+
+  async removeConnection(input: {
+    userId: string;
+    userSecret: string;
+    authorizationId: string;
+  }): Promise<void> {
+    await this.client.connections.removeBrokerageAuthorization({
+      authorizationId: input.authorizationId,
+      userId: input.userId,
+      userSecret: input.userSecret
+    });
   }
 
   async listAccounts(input: {

@@ -27,6 +27,7 @@ struct OnboardingView: View {
     @State private var isCreatingAccount = false
     @State private var isLoading = false
     @State private var statusText: String?
+    @State private var connections: [SeekBrokerageConnection] = []
     @State private var accounts: [SeekBrokerageAccount] = []
     @State private var syncedTrades: [SeekTradeCandidate] = []
     @Environment(\.openURL) private var openURL
@@ -68,6 +69,7 @@ struct OnboardingView: View {
         }
         .task {
             await primeMobileConfiguration()
+            await loadExistingBrokerageState()
         }
         .preferredColorScheme(.light)
     }
@@ -223,23 +225,27 @@ struct OnboardingView: View {
                 .lineSpacing(3)
                 .padding(.horizontal, 4)
 
-            VStack(alignment: .leading, spacing: 18) {
-                trustRow(icon: "link", title: "Connect once", body: "Open SnapTrade, pick a brokerage, and return to GrowHouse.")
-                trustRow(icon: "lock.shield", title: "You stay in control", body: "We use verified account data to build your private trade history.")
+            if let connection = connections.first {
+                connectedBrokerageCard(connection)
+            } else {
+                VStack(alignment: .leading, spacing: 18) {
+                    trustRow(icon: "link", title: "Connect once", body: "Open SnapTrade, pick a brokerage, and return to GrowHouse.")
+                    trustRow(icon: "lock.shield", title: "You stay in control", body: "We use verified account data to build your private trade history.")
+                }
+                .padding(18)
+                .background(TradeTheme.elevated)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(TradeTheme.line, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .shadow(color: TradeTheme.shadowSoft, radius: 22, x: 0, y: 12)
             }
-            .padding(18)
-            .background(TradeTheme.elevated)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(TradeTheme.line, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .shadow(color: TradeTheme.shadowSoft, radius: 22, x: 0, y: 12)
 
             VStack(spacing: 12) {
-                primaryButton(accounts.isEmpty ? "Connect brokerage" : "Continue") {
+                primaryButton(connections.isEmpty ? "Connect brokerage" : "Continue") {
                     Task {
-                        if accounts.isEmpty {
+                        if connections.isEmpty {
                             await connectBrokerage()
                         } else {
                             finishOnboarding()
@@ -253,7 +259,7 @@ struct OnboardingView: View {
                         await syncAfterPortalReturn()
                     }
                 } label: {
-                    Text("I connected, sync now")
+                    Text(connections.isEmpty ? "I connected, sync now" : "Refresh connection")
                         .font(.seek(size: 15, weight: .semibold))
                         .foregroundStyle(TradeTheme.ink.opacity(0.76))
                         .frame(maxWidth: .infinity)
@@ -345,6 +351,53 @@ struct OnboardingView: View {
         }
     }
 
+    private func connectedBrokerageCard(_ connection: SeekBrokerageConnection) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Text(connectionInitials(connection))
+                    .font(.seek(size: 16, weight: .black))
+                    .foregroundStyle(TradeTheme.paper)
+                    .frame(width: 46, height: 46)
+                    .background(connection.disabled ? TradeTheme.muted : TradeTheme.spotifyGreen)
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(connection.brokerageName ?? "Brokerage connected")
+                        .font(.seek(size: 16, weight: .bold))
+                        .foregroundStyle(TradeTheme.ink)
+                    Text(connection.disabled ? "Needs reconnection" : "\(accounts.count) account\(accounts.count == 1 ? "" : "s") ready")
+                        .font(.seek(size: 13, weight: .regular))
+                        .foregroundStyle(TradeTheme.muted)
+                }
+                Spacer()
+            }
+
+            Button {
+                Task {
+                    await removeConnection(connection)
+                }
+            } label: {
+                Text("Remove connection")
+                    .font(.seek(size: 13, weight: .bold))
+                    .foregroundStyle(TradeTheme.loss)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 38)
+                    .background(TradeTheme.tile)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading)
+        }
+        .padding(16)
+        .background(TradeTheme.elevated)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(TradeTheme.line, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: TradeTheme.shadowSoft, radius: 22, x: 0, y: 12)
+    }
+
     private func authenticate() async {
         isLoading = true
         statusText = "Preparing secure sign in"
@@ -412,14 +465,15 @@ struct OnboardingView: View {
 
         do {
             let result = try await api.syncAllAccounts()
+            connections = result.0
             accounts = result.1
             syncedTrades = result.2
-            settings.brokerageConnected = !accounts.isEmpty
-            statusText = accounts.isEmpty
+            settings.brokerageConnected = !connections.isEmpty
+            statusText = connections.isEmpty
                 ? "No brokerage account found yet. Finish SnapTrade connection, then sync again."
                 : "Synced \(accounts.count) accounts and \(syncedTrades.count) trades"
 
-            if !accounts.isEmpty {
+            if !connections.isEmpty {
                 finishOnboarding()
             }
         } catch {
@@ -427,8 +481,47 @@ struct OnboardingView: View {
         }
     }
 
+    private func loadExistingBrokerageState() async {
+        guard settings.isAuthenticated else { return }
+        do {
+            async let loadedConnections = api.connections()
+            async let loadedAccounts = api.accounts()
+            connections = try await loadedConnections
+            accounts = try await loadedAccounts
+            settings.brokerageConnected = !connections.isEmpty
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    private func removeConnection(_ connection: SeekBrokerageConnection) async {
+        isLoading = true
+        statusText = "Removing brokerage connection"
+        defer { isLoading = false }
+
+        do {
+            try await api.removeConnection(id: connection.id)
+            connections.removeAll { $0.id == connection.id }
+            accounts = []
+            syncedTrades = []
+            settings.brokerageConnected = false
+            statusText = "Connection removed"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
     private func finishOnboarding() {
         settings.onboardingCompleted = true
+    }
+
+    private func connectionInitials(_ connection: SeekBrokerageConnection) -> String {
+        let source = connection.brokerageName ?? connection.brokerageSlug ?? "GH"
+        let pieces = source.split(separator: " ")
+        if pieces.count > 1 {
+            return pieces.prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
+        }
+        return String(source.prefix(2)).uppercased()
     }
 }
 

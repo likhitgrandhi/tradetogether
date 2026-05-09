@@ -6,6 +6,10 @@ const syncAccountParams = z.object({
   accountId: z.string().uuid()
 });
 
+const connectionParams = z.object({
+  connectionId: z.string().uuid()
+});
+
 export function registerBrokerageRoutes(
   app: FastifyInstance,
   deps: { brokerageData: BrokerageDataService }
@@ -27,6 +31,17 @@ export function registerBrokerageRoutes(
     },
     async (request) => {
       return deps.brokerageData.syncConnectionsAndAccounts(request.authUser!);
+    }
+  );
+
+  app.delete(
+    "/brokerage/connections/:connectionId",
+    {
+      preHandler: app.requireAuth
+    },
+    async (request) => {
+      const params = connectionParams.parse(request.params);
+      return deps.brokerageData.removeConnection(request.authUser!, params.connectionId);
     }
   );
 
