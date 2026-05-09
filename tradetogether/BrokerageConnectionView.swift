@@ -9,9 +9,8 @@ import SwiftUI
 
 struct BrokerageConnectionView: View {
     @StateObject private var settings = SeekAPISettings.shared
-    @State private var statusText = "Not connected"
+    @State private var statusText = "Ready to sync verified trades"
     @State private var isLoading = false
-    @State private var authPassword = ""
     @State private var accounts: [SeekBrokerageAccount] = []
     @State private var candidates: [SeekTradeCandidate] = []
     @Environment(\.openURL) private var openURL
@@ -24,7 +23,7 @@ struct BrokerageConnectionView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Brokerage Sync")
+                    Text("Connected Brokerage")
                         .font(.seek(size: 15, weight: .bold))
                         .foregroundStyle(TradeTheme.ink)
                     Text(statusText)
@@ -39,54 +38,7 @@ struct BrokerageConnectionView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                TextField("API base URL", text: $settings.apiBaseURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-                    .font(.seek(size: 14, weight: .regular))
-                    .padding(.horizontal, 12)
-                    .frame(height: 42)
-                    .background(TradeTheme.tile)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                TextField("Supabase project URL", text: $settings.supabaseURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-                    .font(.seek(size: 14, weight: .regular))
-                    .padding(.horizontal, 12)
-                    .frame(height: 42)
-                    .background(TradeTheme.tile)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                SecureField("Supabase anon key", text: $settings.supabaseAnonKey)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .font(.seek(size: 14, weight: .regular))
-                    .padding(.horizontal, 12)
-                    .frame(height: 42)
-                    .background(TradeTheme.tile)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                HStack(spacing: 8) {
-                    TextField("Email", text: $settings.authEmail)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
-                        .autocorrectionDisabled()
-                    SecureField("Password", text: $authPassword)
-                }
-                .font(.seek(size: 14, weight: .regular))
-                .padding(.horizontal, 12)
-                .frame(height: 42)
-                .background(TradeTheme.tile)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-
             HStack(spacing: 8) {
-                brokerageButton("Sign In") {
-                    try await signIn()
-                }
                 brokerageButton("Health") {
                     try await checkHealth()
                 }
@@ -95,6 +47,12 @@ struct BrokerageConnectionView: View {
                 }
                 brokerageButton("Sync") {
                     try await syncAccounts()
+                }
+                brokerageButton("Sign Out") {
+                    settings.signOut()
+                    accounts = []
+                    candidates = []
+                    statusText = "Signed out"
                 }
             }
 
@@ -127,6 +85,9 @@ struct BrokerageConnectionView: View {
                 .stroke(TradeTheme.line, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .task {
+            await loadConnectedAccounts()
+        }
     }
 
     private func brokerageButton(_ title: String, action: @escaping () async throws -> Void) -> some View {
@@ -213,15 +174,6 @@ struct BrokerageConnectionView: View {
         statusText = health.api.online ? "API online" : "API offline"
     }
 
-    private func signIn() async throws {
-        let session = try await SeekSupabaseAuthClient(settings: settings).signIn(
-            email: settings.authEmail,
-            password: authPassword
-        )
-        settings.accessToken = session.accessToken
-        statusText = "Signed in with Supabase"
-    }
-
     private func connectBroker() async throws {
         try await api.registerSnapTradeUser()
         let portal = try await api.createPortalLink()
@@ -233,12 +185,24 @@ struct BrokerageConnectionView: View {
     }
 
     private func syncAccounts() async throws {
-        let result = try await api.syncConnections()
+        let result = try await api.syncAllAccounts()
         accounts = result.1
-        for account in accounts {
-            try await api.syncAccount(id: account.id)
-        }
-        candidates = try await api.tradeCandidates()
+        candidates = result.2
+        settings.brokerageConnected = !accounts.isEmpty
         statusText = "Synced \(result.0.count) connections, \(result.1.count) accounts, and \(candidates.count) trades"
+    }
+
+    private func loadConnectedAccounts() async {
+        guard settings.isAuthenticated else { return }
+        do {
+            accounts = try await api.accounts()
+            candidates = try await api.tradeCandidates()
+            if !accounts.isEmpty {
+                settings.brokerageConnected = true
+                statusText = "\(accounts.count) accounts connected, \(candidates.count) trades synced"
+            }
+        } catch {
+            statusText = error.localizedDescription
+        }
     }
 }

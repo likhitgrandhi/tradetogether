@@ -10,6 +10,8 @@ import Foundation
 
 private enum GrowHouseAPIConstants {
     static let defaultBaseURL = "https://growhouse-api.onrender.com/"
+    static let defaultSupabaseURL = ""
+    static let defaultSupabaseAnonKey = ""
 
     static func resolvedBaseURL(from storedValue: String?) -> String {
         let trimmed = storedValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -131,14 +133,39 @@ final class SeekAPISettings: ObservableObject {
         didSet { UserDefaults.standard.set(authEmail, forKey: Keys.authEmail) }
     }
 
+    @Published var onboardingCompleted: Bool {
+        didSet { UserDefaults.standard.set(onboardingCompleted, forKey: Keys.onboardingCompleted) }
+    }
+
+    @Published var brokerageConnected: Bool {
+        didSet { UserDefaults.standard.set(brokerageConnected, forKey: Keys.brokerageConnected) }
+    }
+
     private init() {
         apiBaseURL = GrowHouseAPIConstants.resolvedBaseURL(
             from: UserDefaults.standard.string(forKey: Keys.apiBaseURL)
         )
         accessToken = UserDefaults.standard.string(forKey: Keys.accessToken) ?? ""
-        supabaseURL = UserDefaults.standard.string(forKey: Keys.supabaseURL) ?? ""
-        supabaseAnonKey = UserDefaults.standard.string(forKey: Keys.supabaseAnonKey) ?? ""
+        supabaseURL = UserDefaults.standard.string(forKey: Keys.supabaseURL) ?? GrowHouseAPIConstants.defaultSupabaseURL
+        supabaseAnonKey = UserDefaults.standard.string(forKey: Keys.supabaseAnonKey) ?? GrowHouseAPIConstants.defaultSupabaseAnonKey
         authEmail = UserDefaults.standard.string(forKey: Keys.authEmail) ?? ""
+        onboardingCompleted = UserDefaults.standard.bool(forKey: Keys.onboardingCompleted)
+        brokerageConnected = UserDefaults.standard.bool(forKey: Keys.brokerageConnected)
+    }
+
+    var isAuthenticated: Bool {
+        !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var hasAuthConfiguration: Bool {
+        !supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !supabaseAnonKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func signOut() {
+        accessToken = ""
+        onboardingCompleted = false
+        brokerageConnected = false
     }
 
     private enum Keys {
@@ -147,6 +174,8 @@ final class SeekAPISettings: ObservableObject {
         static let supabaseURL = "seek.supabaseURL"
         static let supabaseAnonKey = "seek.supabaseAnonKey"
         static let authEmail = "seek.authEmail"
+        static let onboardingCompleted = "growhouse.onboardingCompleted"
+        static let brokerageConnected = "growhouse.brokerageConnected"
     }
 }
 
@@ -154,8 +183,16 @@ struct SeekSupabaseAuthClient {
     let settings: SeekAPISettings
 
     func signIn(email: String, password: String) async throws -> SeekAuthSession {
+        try await authenticate(path: "/auth/v1/token?grant_type=password", email: email, password: password)
+    }
+
+    func signUp(email: String, password: String) async throws -> SeekAuthSession {
+        try await authenticate(path: "/auth/v1/signup", email: email, password: password)
+    }
+
+    private func authenticate(path: String, email: String, password: String) async throws -> SeekAuthSession {
         guard let baseURL = URL(string: settings.supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
-              let url = URL(string: "/auth/v1/token?grant_type=password", relativeTo: baseURL) else {
+              let url = URL(string: path, relativeTo: baseURL) else {
             throw SeekAPIError.invalidURL
         }
         guard !settings.supabaseAnonKey.isEmpty else {
@@ -177,7 +214,11 @@ struct SeekSupabaseAuthClient {
             throw SeekAPIError.httpStatus(httpResponse.statusCode, String(data: data, encoding: .utf8))
         }
 
-        return try JSONDecoder().decode(SeekAuthSession.self, from: data)
+        do {
+            return try JSONDecoder().decode(SeekAuthSession.self, from: data)
+        } catch {
+            throw SeekAPIError.missingAuthSession
+        }
     }
 }
 
@@ -204,6 +245,15 @@ struct SeekAPIClient {
     func accounts() async throws -> [SeekBrokerageAccount] {
         let response: AccountsResponse = try await send(path: "/brokerage/accounts", method: "GET")
         return response.accounts
+    }
+
+    func syncAllAccounts() async throws -> ([SeekBrokerageConnection], [SeekBrokerageAccount], [SeekTradeCandidate]) {
+        let result = try await syncConnections()
+        for account in result.1 {
+            try await syncAccount(id: account.id)
+        }
+        let candidates = try await tradeCandidates()
+        return (result.0, result.1, candidates)
     }
 
     func syncAccount(id: String) async throws {
@@ -273,6 +323,7 @@ enum SeekAPIError: LocalizedError {
     case invalidResponse
     case missingAccessToken
     case missingSupabaseAnonKey
+    case missingAuthSession
     case httpStatus(Int, String?)
 
     var errorDescription: String? {
@@ -285,6 +336,8 @@ enum SeekAPIError: LocalizedError {
             "Paste a Supabase access token before calling protected endpoints."
         case .missingSupabaseAnonKey:
             "Paste your Supabase anon key before signing in."
+        case .missingAuthSession:
+            "Supabase did not return a session. Check whether email confirmation is required."
         case let .httpStatus(status, body):
             "Request failed with status \(status). \(body ?? "")"
         }

@@ -10,6 +10,8 @@ import UIKit
 
 struct ContentView: View {
     private let store = DemoStore.shared
+    @StateObject private var settings = SeekAPISettings.shared
+    @State private var showSplash = true
 
     init() {
         let appearance = UITabBarAppearance()
@@ -31,6 +33,24 @@ struct ContentView: View {
     }
 
     var body: some View {
+        Group {
+            if showSplash {
+                GrowHouseSplashView()
+            } else if !settings.isAuthenticated || !settings.onboardingCompleted {
+                OnboardingView()
+            } else {
+                mainTabs
+            }
+        }
+        .task {
+            try? await Task.sleep(nanoseconds: 1_050_000_000)
+            withAnimation(.easeInOut(duration: 0.28)) {
+                showSplash = false
+            }
+        }
+    }
+
+    private var mainTabs: some View {
         TabView {
             NavigationStack {
                 FeedView(store: store)
