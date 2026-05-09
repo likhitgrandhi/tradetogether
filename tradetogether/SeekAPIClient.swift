@@ -10,6 +10,18 @@ import Foundation
 
 private enum GrowHouseAPIConstants {
     static let defaultBaseURL = "https://growhouse-api.onrender.com/"
+
+    static func resolvedBaseURL(from storedValue: String?) -> String {
+        let trimmed = storedValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty else { return defaultBaseURL }
+
+        let lowercase = trimmed.lowercased()
+        if lowercase.contains("localhost") || lowercase.contains("127.0.0.1") || lowercase.contains("0.0.0.0") {
+            return defaultBaseURL
+        }
+
+        return trimmed
+    }
 }
 
 struct SeekAPIHealth: Decodable {
@@ -120,7 +132,9 @@ final class SeekAPISettings: ObservableObject {
     }
 
     private init() {
-        apiBaseURL = UserDefaults.standard.string(forKey: Keys.apiBaseURL) ?? GrowHouseAPIConstants.defaultBaseURL
+        apiBaseURL = GrowHouseAPIConstants.resolvedBaseURL(
+            from: UserDefaults.standard.string(forKey: Keys.apiBaseURL)
+        )
         accessToken = UserDefaults.standard.string(forKey: Keys.accessToken) ?? ""
         supabaseURL = UserDefaults.standard.string(forKey: Keys.supabaseURL) ?? ""
         supabaseAnonKey = UserDefaults.standard.string(forKey: Keys.supabaseAnonKey) ?? ""
@@ -257,9 +271,9 @@ private struct CandidatesResponse: Decodable {
 enum SeekAPIError: LocalizedError {
     case invalidURL
     case invalidResponse
-        case missingAccessToken
-        case missingSupabaseAnonKey
-        case httpStatus(Int, String?)
+    case missingAccessToken
+    case missingSupabaseAnonKey
+    case httpStatus(Int, String?)
 
     var errorDescription: String? {
         switch self {
