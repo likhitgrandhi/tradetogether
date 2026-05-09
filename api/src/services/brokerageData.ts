@@ -457,6 +457,7 @@ function numberFrom(...values: unknown[]): number | undefined {
 
 function symbolFrom(raw: JsonRecord): string | null {
   const symbol = asRecord(raw.symbol);
+  const nestedSymbol = asRecord(symbol.symbol);
   const security = asRecord(raw.security);
   const universalSymbol = asRecord(raw.universal_symbol);
   const optionSymbol = asRecord(raw.option_symbol);
@@ -470,6 +471,9 @@ function symbolFrom(raw: JsonRecord): string | null {
     symbol.symbol,
     symbol.raw_symbol,
     symbol.ticker,
+    nestedSymbol.symbol,
+    nestedSymbol.raw_symbol,
+    nestedSymbol.ticker,
     security.symbol,
     security.raw_symbol,
     universalSymbol.symbol,
@@ -520,6 +524,7 @@ function providerSymbolIdFrom(
   symbol: string
 ): string {
   const symbolRecord = asRecord(raw.symbol);
+  const nestedSymbol = asRecord(symbolRecord.symbol);
   const security = asRecord(raw.security);
   const universalSymbol = asRecord(raw.universal_symbol);
   const optionSymbol = asRecord(raw.option_symbol);
@@ -529,6 +534,7 @@ function providerSymbolIdFrom(
     raw.symbol_id,
     raw.security_id,
     symbolRecord.id,
+    nestedSymbol.id,
     security.id,
     universalSymbol.id,
     optionSymbol.id,
@@ -539,6 +545,7 @@ function providerSymbolIdFrom(
 
 function rawSymbolFrom(raw: JsonRecord): string | null {
   const symbol = asRecord(raw.symbol);
+  const nestedSymbol = asRecord(symbol.symbol);
   const security = asRecord(raw.security);
   const universalSymbol = asRecord(raw.universal_symbol);
   const optionSymbol = asRecord(raw.option_symbol);
@@ -546,6 +553,7 @@ function rawSymbolFrom(raw: JsonRecord): string | null {
     raw.raw_symbol,
     raw.symbol_symbol,
     symbol.raw_symbol,
+    nestedSymbol.raw_symbol,
     security.raw_symbol,
     universalSymbol.raw_symbol,
     optionSymbol.raw_symbol
@@ -554,6 +562,7 @@ function rawSymbolFrom(raw: JsonRecord): string | null {
 
 function instrumentNameFrom(raw: JsonRecord): string | null {
   const symbol = asRecord(raw.symbol);
+  const nestedSymbol = asRecord(symbol.symbol);
   const security = asRecord(raw.security);
   const universalSymbol = asRecord(raw.universal_symbol);
   const optionSymbol = asRecord(raw.option_symbol);
@@ -567,6 +576,9 @@ function instrumentNameFrom(raw: JsonRecord): string | null {
     symbol.name,
     symbol.description,
     symbol.symbol_description,
+    nestedSymbol.name,
+    nestedSymbol.description,
+    nestedSymbol.symbol_description,
     security.name,
     security.description,
     universalSymbol.name,
@@ -589,9 +601,14 @@ function assetClassFrom(
   }
 
   const symbol = asRecord(raw.symbol);
+  const nestedSymbol = asRecord(symbol.symbol);
+  const nestedSymbolType = asRecord(nestedSymbol.type);
   const security = asRecord(raw.security);
+  const securityType = asRecord(security.type);
   const universalSymbol = asRecord(raw.universal_symbol);
+  const universalSymbolType = asRecord(universalSymbol.type);
   const optionSymbol = asRecord(raw.option_symbol);
+  const optionSymbolType = asRecord(optionSymbol.type);
   const text = firstString(
     raw.asset_class,
     raw.security_type,
@@ -599,8 +616,17 @@ function assetClassFrom(
     raw.type,
     symbol.type,
     security.type,
+    nestedSymbol.type,
+    nestedSymbolType.code,
+    nestedSymbolType.description,
+    securityType.code,
+    securityType.description,
     universalSymbol.type,
-    optionSymbol.type
+    universalSymbolType.code,
+    universalSymbolType.description,
+    optionSymbol.type,
+    optionSymbolType.code,
+    optionSymbolType.description
   )?.toLowerCase();
 
   if (!text) {
@@ -608,6 +634,9 @@ function assetClassFrom(
   }
   if (text.includes("option")) {
     return "option";
+  }
+  if (text === "cs" || text.includes("common stock") || text.includes("stock")) {
+    return "equity";
   }
   if (text.includes("future")) {
     return "future";
@@ -626,8 +655,12 @@ function assetClassFrom(
 
 function exchangeCodeFrom(raw: JsonRecord): string | null {
   const symbol = asRecord(raw.symbol);
+  const nestedSymbol = asRecord(symbol.symbol);
+  const nestedSymbolExchange = asRecord(nestedSymbol.exchange);
   const security = asRecord(raw.security);
+  const securityExchange = asRecord(security.exchange);
   const universalSymbol = asRecord(raw.universal_symbol);
+  const universalSymbolExchange = asRecord(universalSymbol.exchange);
   const exchange = asRecord(raw.exchange);
   return firstString(
     raw.exchange_code,
@@ -635,10 +668,21 @@ function exchangeCodeFrom(raw: JsonRecord): string | null {
     raw.listing_exchange,
     symbol.exchange_code,
     symbol.exchange,
+    nestedSymbol.exchange_code,
+    nestedSymbol.exchange,
+    nestedSymbolExchange.code,
+    nestedSymbolExchange.mic_code,
+    nestedSymbolExchange.name,
     security.exchange_code,
     security.exchange,
+    securityExchange.code,
+    securityExchange.mic_code,
+    securityExchange.name,
     universalSymbol.exchange_code,
     universalSymbol.exchange,
+    universalSymbolExchange.code,
+    universalSymbolExchange.mic_code,
+    universalSymbolExchange.name,
     exchange.code,
     exchange.mic_code,
     exchange.name
@@ -647,17 +691,29 @@ function exchangeCodeFrom(raw: JsonRecord): string | null {
 
 function currencyCodeFrom(raw: JsonRecord): string | null {
   const symbol = asRecord(raw.symbol);
+  const nestedSymbol = asRecord(symbol.symbol);
+  const nestedSymbolCurrency = asRecord(nestedSymbol.currency);
   const security = asRecord(raw.security);
+  const securityCurrency = asRecord(security.currency);
   const universalSymbol = asRecord(raw.universal_symbol);
+  const universalSymbolCurrency = asRecord(universalSymbol.currency);
   return firstString(
     raw.currency,
     raw.currency_code,
     symbol.currency,
     symbol.currency_code,
+    nestedSymbol.currency,
+    nestedSymbol.currency_code,
+    nestedSymbolCurrency.code,
+    nestedSymbolCurrency.name,
     security.currency,
     security.currency_code,
+    securityCurrency.code,
+    securityCurrency.name,
     universalSymbol.currency,
-    universalSymbol.currency_code
+    universalSymbol.currency_code,
+    universalSymbolCurrency.code,
+    universalSymbolCurrency.name
   );
 }
 
