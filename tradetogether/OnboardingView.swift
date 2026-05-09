@@ -11,9 +11,9 @@ import UIKit
 struct GrowHouseSplashView: View {
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-            GrowHouseMark(size: 150, foreground: .black, background: TradeTheme.gain)
-                .shadow(color: TradeTheme.gain.opacity(0.20), radius: 28, x: 0, y: 16)
+            TradeTheme.spotifyBlack.ignoresSafeArea()
+            GrowHouseMark(size: 156, foreground: TradeTheme.paper, background: TradeTheme.spotifyGreen)
+                .shadow(color: TradeTheme.spotifyGreen.opacity(0.22), radius: 28, x: 0, y: 16)
         }
         .preferredColorScheme(.dark)
     }
@@ -72,7 +72,7 @@ struct OnboardingView: View {
 
     private var onboardingBackground: some View {
         ZStack {
-            Color(red: 0.985, green: 0.982, blue: 0.988)
+            TradeTheme.paper
                 .ignoresSafeArea()
             DottedBackground()
                 .opacity(0.45)
@@ -89,11 +89,11 @@ struct OnboardingView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 22, weight: .regular))
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(TradeTheme.ink)
                     .frame(width: 56, height: 56)
-                    .background(Color.white)
+                    .background(TradeTheme.elevated)
                     .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.06), radius: 18, x: 0, y: 10)
+                    .shadow(color: TradeTheme.shadowSoft, radius: 18, x: 0, y: 10)
             }
             .buttonStyle(.plain)
             .opacity(settings.isAuthenticated ? 1 : 0)
@@ -102,7 +102,7 @@ struct OnboardingView: View {
 
             Text("GrowHouse")
                 .font(.seek(size: 18, weight: .bold))
-                .foregroundStyle(Color.black)
+                .foregroundStyle(TradeTheme.ink)
 
             Spacer()
 
@@ -116,7 +116,7 @@ struct OnboardingView: View {
     @ViewBuilder
     private var currentStep: some View {
         VStack(spacing: 28) {
-            GrowHouseMark(size: 78, foreground: .white, background: .black)
+            GrowHouseMark(size: 78, foreground: TradeTheme.paper, background: TradeTheme.ink)
 
             switch step {
             case .email:
@@ -135,7 +135,7 @@ struct OnboardingView: View {
         VStack(spacing: 20) {
             Text("What is your email address?")
                 .font(.seek(size: 25, weight: .semibold))
-                .foregroundStyle(Color.black.opacity(0.86))
+                .foregroundStyle(TradeTheme.ink.opacity(0.86))
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 14) {
@@ -151,7 +151,7 @@ struct OnboardingView: View {
                 } label: {
                     Text(isCreatingAccount ? "Create account mode" : "Already have an account")
                         .font(.seek(size: 15, weight: .regular))
-                        .foregroundStyle(Color.black.opacity(0.72))
+                        .foregroundStyle(TradeTheme.ink.opacity(0.72))
                 }
                 .buttonStyle(.plain)
             }
@@ -163,10 +163,10 @@ struct OnboardingView: View {
             VStack(spacing: 8) {
                 Text(isCreatingAccount ? "Create your password" : "Welcome back")
                     .font(.seek(size: 25, weight: .semibold))
-                    .foregroundStyle(Color.black.opacity(0.86))
+                    .foregroundStyle(TradeTheme.ink.opacity(0.86))
                 Text(email)
                     .font(.seek(size: 14, weight: .regular))
-                    .foregroundStyle(Color.black.opacity(0.54))
+                    .foregroundStyle(TradeTheme.ink.opacity(0.54))
                     .lineLimit(1)
             }
 
@@ -175,13 +175,13 @@ struct OnboardingView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(.seek(size: 16, weight: .regular))
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(TradeTheme.ink)
                     .padding(.horizontal, 16)
                     .frame(height: 56)
-                    .background(Color.white.opacity(0.78))
+                    .background(TradeTheme.elevated.opacity(0.78))
                     .overlay(
                         RoundedRectangle(cornerRadius: 9)
-                            .stroke(Color.black.opacity(0.13), lineWidth: 1)
+                            .stroke(TradeTheme.line, lineWidth: 1)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 9))
 
@@ -198,7 +198,7 @@ struct OnboardingView: View {
                 } label: {
                     Text("Use a different email")
                         .font(.seek(size: 15, weight: .regular))
-                        .foregroundStyle(Color.black.opacity(0.72))
+                        .foregroundStyle(TradeTheme.ink.opacity(0.72))
                 }
                 .buttonStyle(.plain)
             }
@@ -207,14 +207,16 @@ struct OnboardingView: View {
 
     private var brokerageStep: some View {
         VStack(spacing: 24) {
+            ConnectedServicePair()
+
             Text("Connect your brokerage")
                 .font(.seek(size: 27, weight: .semibold))
-                .foregroundStyle(Color.black.opacity(0.88))
+                .foregroundStyle(TradeTheme.ink.opacity(0.88))
                 .multilineTextAlignment(.center)
 
             Text("GrowHouse uses SnapTrade to verify trades from your accounts. You choose what to connect, and you can sync again anytime.")
                 .font(.seek(size: 15, weight: .regular))
-                .foregroundStyle(Color.black.opacity(0.62))
+                .foregroundStyle(TradeTheme.muted)
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
                 .padding(.horizontal, 4)
@@ -224,13 +226,13 @@ struct OnboardingView: View {
                 trustRow(icon: "lock.shield", title: "You stay in control", body: "We use verified account data to build your private trade history.")
             }
             .padding(18)
-            .background(Color.white)
+            .background(TradeTheme.elevated)
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                    .stroke(TradeTheme.line, lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 18))
-            .shadow(color: .black.opacity(0.04), radius: 22, x: 0, y: 12)
+            .shadow(color: TradeTheme.shadowSoft, radius: 22, x: 0, y: 12)
 
             VStack(spacing: 12) {
                 primaryButton(accounts.isEmpty ? "Connect brokerage" : "Continue") {
@@ -251,7 +253,7 @@ struct OnboardingView: View {
                 } label: {
                     Text("I connected, sync now")
                         .font(.seek(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.black.opacity(0.76))
+                        .foregroundStyle(TradeTheme.ink.opacity(0.76))
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
                 }
@@ -263,7 +265,7 @@ struct OnboardingView: View {
                 } label: {
                     Text("Skip for now")
                         .font(.seek(size: 14, weight: .regular))
-                        .foregroundStyle(Color.black.opacity(0.52))
+                        .foregroundStyle(TradeTheme.ink.opacity(0.52))
                 }
                 .buttonStyle(.plain)
             }
@@ -274,13 +276,13 @@ struct OnboardingView: View {
         VStack(spacing: 10) {
             if isLoading {
                 ProgressView()
-                    .tint(Color.black)
+                    .tint(TradeTheme.ink)
             }
 
             if let statusText {
                 Text(statusText)
                     .font(.seek(size: 13, weight: .regular))
-                    .foregroundStyle(Color.black.opacity(0.58))
+                    .foregroundStyle(TradeTheme.muted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
@@ -299,13 +301,13 @@ struct OnboardingView: View {
             .keyboardType(keyboard)
             .autocorrectionDisabled()
             .font(.seek(size: 16, weight: .regular))
-            .foregroundStyle(Color.black)
+            .foregroundStyle(TradeTheme.ink)
             .padding(.horizontal, 16)
             .frame(height: 56)
-            .background(Color.white.opacity(0.78))
+            .background(TradeTheme.elevated.opacity(0.78))
             .overlay(
                 RoundedRectangle(cornerRadius: 9)
-                    .stroke(Color.black.opacity(0.13), lineWidth: 1)
+                    .stroke(TradeTheme.line, lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 9))
     }
@@ -314,10 +316,10 @@ struct OnboardingView: View {
         Button(action: action) {
             Text(title)
                 .font(.seek(size: 18, weight: .bold))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(TradeTheme.paper)
                 .frame(maxWidth: .infinity)
                 .frame(height: 58)
-                .background(Color.black)
+                .background(TradeTheme.ink)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
@@ -327,15 +329,15 @@ struct OnboardingView: View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.black)
+                .foregroundStyle(TradeTheme.ink)
                 .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.seek(size: 16, weight: .bold))
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(TradeTheme.ink)
                 Text(body)
                     .font(.seek(size: 15, weight: .regular))
-                    .foregroundStyle(Color.black.opacity(0.58))
+                    .foregroundStyle(TradeTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -443,18 +445,62 @@ private struct GrowHouseMark: View {
         ZStack {
             Circle()
                 .fill(background)
-            Image(systemName: "leaf.fill")
-                .font(.system(size: size * 0.42, weight: .black))
+            Image("UpDownLogo")
+                .resizable()
+                .renderingMode(.template)
                 .foregroundStyle(foreground)
-                .rotationEffect(.degrees(-20))
-                .offset(x: -size * 0.04, y: size * 0.02)
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: size * 0.30, weight: .bold))
-                .foregroundStyle(foreground)
-                .offset(x: size * 0.08, y: size * 0.08)
+                .scaledToFit()
+                .frame(width: size * 0.56, height: size * 0.56)
         }
         .frame(width: size, height: size)
         .accessibilityLabel("GrowHouse")
+    }
+}
+
+private struct ConnectedServicePair: View {
+    var body: some View {
+        HStack(spacing: -10) {
+            serviceAvatar(
+                background: TradeTheme.spotifyGreen,
+                imageName: "UpDownLogo",
+                renderingMode: .template,
+                foreground: TradeTheme.paper,
+                scale: 0.54
+            )
+            serviceAvatar(
+                background: TradeTheme.ink,
+                imageName: "SnapTradeLogo",
+                renderingMode: .original,
+                foreground: TradeTheme.paper,
+                scale: 0.68
+            )
+        }
+        .accessibilityLabel("GrowHouse connects with SnapTrade")
+    }
+
+    private func serviceAvatar(
+        background: Color,
+        imageName: String,
+        renderingMode: Image.TemplateRenderingMode,
+        foreground: Color,
+        scale: CGFloat
+    ) -> some View {
+        ZStack {
+            Circle()
+                .fill(background)
+            Image(imageName)
+                .resizable()
+                .renderingMode(renderingMode)
+                .foregroundStyle(foreground)
+                .scaledToFit()
+                .frame(width: 62 * scale, height: 62 * scale)
+        }
+        .frame(width: 62, height: 62)
+        .overlay(
+            Circle()
+                .stroke(TradeTheme.paper, lineWidth: 4)
+        )
+        .shadow(color: TradeTheme.shadowSoft, radius: 14, x: 0, y: 8)
     }
 }
 
@@ -469,7 +515,7 @@ private struct DottedBackground: View {
                     var y: CGFloat = 10
                     while y < size.height {
                         let rect = CGRect(x: x, y: y, width: radius * 2, height: radius * 2)
-                        context.fill(Path(ellipseIn: rect), with: .color(.black.opacity(0.08)))
+                        context.fill(Path(ellipseIn: rect), with: .color(TradeTheme.ink.opacity(0.08)))
                         y += spacing
                     }
                     x += spacing

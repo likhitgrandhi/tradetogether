@@ -11,6 +11,7 @@ struct ProfileView: View {
     let profile: TraderProfile
     let posts: [TradeIdea]
     let store: DemoStore
+    @StateObject private var settings = SeekAPISettings.shared
     @State private var selectedProfileTab: ProfileTab = .myTrades
 
     var body: some View {
@@ -19,7 +20,7 @@ struct ProfileView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 WSJMasthead()
-                profileHeader(stats: stats)
+                profileHeader(stats: stats, isCurrentUser: profile.id == store.currentUser.id)
                 if profile.id == store.currentUser.id {
                     BrokerageConnectionView()
                 }
@@ -32,7 +33,7 @@ struct ProfileView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func profileHeader(stats: ProfileStats) -> some View {
+    private func profileHeader(stats: ProfileStats, isCurrentUser: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
                 TraderAvatar(profile: profile, size: 58)
@@ -47,6 +48,26 @@ struct ProfileView: View {
                         .font(.seek(size: 15, weight: .regular))
                         .foregroundStyle(TradeTheme.ink.opacity(0.82))
                         .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                if isCurrentUser {
+                    Button {
+                        settings.signOut()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Log out")
+                                .font(.seek(size: 13, weight: .bold))
+                        }
+                        .foregroundStyle(TradeTheme.ink)
+                        .padding(.horizontal, 10)
+                        .frame(height: 34)
+                        .background(TradeTheme.tile)
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(TradePressableStyle())
+                    .accessibilityLabel("Log out")
                 }
             }
 

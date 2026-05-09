@@ -151,6 +151,8 @@ enum TradeMetrics {
 }
 
 enum TradeTheme {
+    static let spotifyBlack = adaptive(light: UIColor(red: 0.071, green: 0.071, blue: 0.071, alpha: 1), dark: UIColor.black)
+    static let spotifyGreen = adaptive(light: UIColor(red: 0.114, green: 0.725, blue: 0.329, alpha: 1), dark: UIColor(red: 0.114, green: 0.725, blue: 0.329, alpha: 1))
     static let ink = adaptive(light: UIColor.black, dark: UIColor.white)
     static let paper = adaptive(light: UIColor.white, dark: UIColor(red: 0.071, green: 0.071, blue: 0.071, alpha: 1))
     static let panel = adaptive(light: UIColor(red: 0.980, green: 0.980, blue: 0.980, alpha: 1), dark: UIColor(red: 0.094, green: 0.094, blue: 0.094, alpha: 1))
@@ -167,6 +169,7 @@ enum TradeTheme {
     static let brandBlue = adaptive(light: UIColor(red: 0.176, green: 0.498, blue: 0.976, alpha: 1), dark: UIColor(red: 0.114, green: 0.725, blue: 0.329, alpha: 1))
     static let softPurple = adaptive(light: UIColor(red: 0.55, green: 0.32, blue: 0.96, alpha: 1), dark: UIColor(red: 0.63, green: 0.49, blue: 0.98, alpha: 1))
     static let verified = adaptive(light: UIColor(red: 0.000, green: 0.584, blue: 0.965, alpha: 1), dark: UIColor(red: 0.64, green: 0.76, blue: 1.00, alpha: 1))
+    static let shadowSoft = Color.black.opacity(0.06)
 
     private static func adaptive(light: UIColor, dark: UIColor) -> Color {
         Color(UIColor { traitCollection in
