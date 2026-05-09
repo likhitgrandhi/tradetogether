@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct BrokerageConnectionView: View {
+    var showsSignOut = true
     @StateObject private var settings = SeekAPISettings.shared
     @State private var statusText = "Ready to sync verified trades"
     @State private var isLoading = false
@@ -56,12 +57,14 @@ struct BrokerageConnectionView: View {
                         try await removeConnection()
                     }
                 }
-                brokerageButton("Sign Out") {
-                    settings.signOut()
-                    connections = []
-                    accounts = []
-                    candidates = []
-                    statusText = "Signed out"
+                if showsSignOut {
+                    brokerageButton("Sign Out") {
+                        settings.signOut()
+                        connections = []
+                        accounts = []
+                        candidates = []
+                        statusText = "Signed out"
+                    }
                 }
             }
 

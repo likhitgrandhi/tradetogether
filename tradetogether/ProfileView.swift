@@ -11,35 +11,67 @@ struct ProfileView: View {
     let profile: TraderProfile
     let posts: [TradeIdea]
     let store: DemoStore
-    @StateObject private var settings = SeekAPISettings.shared
-    @State private var selectedProfileTab: ProfileTab = .myTrades
+    @State private var selectedProfileTab: ProfileTab = .posts
 
     var body: some View {
         let stats = TradeMetrics.stats(for: profile, posts: posts)
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                WSJMasthead()
+            VStack(alignment: .leading, spacing: 0) {
+                profileTopBar
                 profileHeader(stats: stats, isCurrentUser: profile.id == store.currentUser.id)
-                if profile.id == store.currentUser.id {
-                    BrokerageConnectionView()
-                }
                 profileTabs
             }
-            .padding(.horizontal, 20)
             .padding(.bottom, 24)
         }
         .background(TradeTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
     }
 
+    private var profileTopBar: some View {
+        HStack {
+            Color.clear
+                .frame(width: 44, height: 44)
+
+            Spacer()
+
+            UpDownLogo()
+
+            Spacer()
+
+            if profile.id == store.currentUser.id {
+                NavigationLink {
+                    SettingsView()
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.seek(size: 22, weight: .semibold))
+                        .foregroundStyle(TradeTheme.ink)
+                        .frame(width: 44, height: 44)
+                        .background(TradeTheme.tile)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open settings")
+            } else {
+                Image(systemName: "ellipsis")
+                    .font(.seek(size: 22, weight: .semibold))
+                    .foregroundStyle(TradeTheme.ink)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
+        .padding(.bottom, 10)
+        .background(TradeTheme.paper)
+    }
+
     private func profileHeader(stats: ProfileStats, isCurrentUser: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 12) {
-                TraderAvatar(profile: profile, size: 58)
+                TraderAvatar(profile: profile, size: 72)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(profile.name)
-                        .font(.seek(size: 22, weight: .bold))
+                        .font(.seek(size: 24, weight: .bold))
                         .foregroundStyle(TradeTheme.ink)
                     Text("\(profile.handle) - \(profile.role)")
                         .font(.seek(size: 15, weight: .semibold))
@@ -51,13 +83,11 @@ struct ProfileView: View {
                 }
                 Spacer(minLength: 8)
                 if isCurrentUser {
-                    Button {
-                        settings.signOut()
-                    } label: {
+                    Button {} label: {
                         HStack(spacing: 6) {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Image(systemName: "pencil")
                                 .font(.system(size: 13, weight: .semibold))
-                            Text("Log out")
+                            Text("Edit")
                                 .font(.seek(size: 13, weight: .bold))
                         }
                         .foregroundStyle(TradeTheme.ink)
@@ -67,57 +97,75 @@ struct ProfileView: View {
                         .clipShape(Capsule())
                     }
                     .buttonStyle(TradePressableStyle())
-                    .accessibilityLabel("Log out")
+                    .accessibilityLabel("Edit profile")
                 }
             }
 
-            HStack(spacing: 8) {
-                MetricPill(title: "Win Rate", value: "\(stats.winRate)%", tint: TradeTheme.gain)
-                MetricPill(title: "Closed", value: "\(stats.closedIdeas)")
-                MetricPill(title: "Avg Return", value: stats.averageReturn.percentText, tint: stats.averageReturn >= 0 ? TradeTheme.gain : TradeTheme.loss)
-            }
-
-            HStack(spacing: 8) {
-                MetricPill(title: "Active Ideas", value: "\(stats.activeIdeas)")
-                MetricPill(title: "Followers", value: profile.followers)
+            HStack(spacing: 18) {
+                profileStat(value: "\(stats.winRate)%", label: "Win Rate", tint: TradeTheme.gain)
+                profileStat(value: profile.followers, label: "Followers")
+                profileStat(value: "\(stats.activeIdeas)", label: "Active")
+                profileStat(value: "\(stats.closedIdeas)", label: "Closed")
             }
         }
-        .padding(14)
-        .background(TradeTheme.panel)
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(TradeTheme.line, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 18)
+        .background(TradeTheme.paper)
+    }
+
+    private func profileStat(value: String, label: String, tint: Color = TradeTheme.ink) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.seek(size: 15, weight: .bold))
+                .foregroundStyle(tint)
+            Text(label)
+                .font(.seek(size: 14, weight: .regular))
+                .foregroundStyle(TradeTheme.muted)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.78)
     }
 
     private var profileTabs: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 28) {
                 ForEach(ProfileTab.allCases) { tab in
                     Button {
-                        selectedProfileTab = tab
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            selectedProfileTab = tab
+                        }
                     } label: {
-                        Text(tab.rawValue)
-                            .font(.seek(size: 14, weight: .bold))
-                            .foregroundStyle(selectedProfileTab == tab ? TradeTheme.paper : TradeTheme.ink)
-                            .padding(.horizontal, 14)
-                            .frame(height: 34)
-                            .background(selectedProfileTab == tab ? TradeTheme.ink : TradeTheme.tile)
-                            .clipShape(Capsule())
+                        VStack(spacing: 9) {
+                            Text(tab.rawValue)
+                                .font(.seek(size: 17, weight: selectedProfileTab == tab ? .bold : .semibold))
+                                .foregroundStyle(selectedProfileTab == tab ? TradeTheme.ink : TradeTheme.muted)
+                            Rectangle()
+                                .fill(selectedProfileTab == tab ? TradeTheme.spotifyGreen : Color.clear)
+                                .frame(width: 30, height: 4)
+                        }
+                        .frame(height: 48)
                     }
                     .buttonStyle(.plain)
                 }
                 Spacer()
             }
+            .padding(.horizontal, 20)
+
+            Rectangle()
+                .fill(TradeTheme.line)
+                .frame(height: 1)
 
             switch selectedProfileTab {
-            case .myTrades:
+            case .posts:
+                ProfilePostsSection(profile: profile, posts: posts, store: store)
+            case .trades:
                 if profile.id == store.currentUser.id {
                     MyTradesProfileSection()
                 } else {
                     publicTradesPlaceholder
                 }
+            case .saved:
+                SavedProfileSection()
             }
         }
     }
@@ -137,9 +185,48 @@ struct ProfileView: View {
 }
 
 private enum ProfileTab: String, CaseIterable, Identifiable {
-    case myTrades = "My Trades"
+    case posts = "Posts"
+    case trades = "Trades"
+    case saved = "Saved"
 
     var id: String { rawValue }
+}
+
+private struct ProfilePostsSection: View {
+    let profile: TraderProfile
+    let posts: [TradeIdea]
+    let store: DemoStore
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if posts.isEmpty {
+                ProfileEmptyState(
+                    icon: "doc.text.magnifyingglass",
+                    title: "No posts yet",
+                    message: "Trade ideas and market notes will show here."
+                )
+            } else {
+                ForEach(posts) { post in
+                    TradeIdeaCard(
+                        post: post,
+                        author: profile,
+                        stock: store.stock(id: post.stockID),
+                        stats: TradeMetrics.stats(for: profile, posts: posts)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private struct SavedProfileSection: View {
+    var body: some View {
+        ProfileEmptyState(
+            icon: "bookmark",
+            title: "No saved posts",
+            message: "Saved trade ideas and references will collect here."
+        )
+    }
 }
 
 private struct MyTradesProfileSection: View {
@@ -215,19 +302,11 @@ private struct MyTradesProfileSection: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("No verified trades yet")
-                .font(.seek(size: 14, weight: .bold))
-                .foregroundStyle(TradeTheme.ink)
-            Text("Connect and sync a brokerage account above. Open positions and closed activity from SnapTrade will populate this tab.")
-                .font(.seek(size: 14, weight: .regular))
-                .foregroundStyle(TradeTheme.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(TradeTheme.panel)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        ProfileEmptyState(
+            icon: "chart.line.uptrend.xyaxis",
+            title: "No verified trades yet",
+            message: "Connect and sync a brokerage account in Settings. Open positions and closed activity from SnapTrade will populate this tab."
+        )
     }
 
     private func loadTrades() async {
@@ -239,6 +318,34 @@ private struct MyTradesProfileSection: View {
         } catch {
             statusText = error.localizedDescription
         }
+    }
+}
+
+private struct ProfileEmptyState: View {
+    let icon: String
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.seek(size: 42, weight: .regular))
+                .foregroundStyle(TradeTheme.tertiary.opacity(0.72))
+            VStack(spacing: 5) {
+                Text(title)
+                    .font(.seek(size: 15, weight: .bold))
+                    .foregroundStyle(TradeTheme.ink)
+                Text(message)
+                    .font(.seek(size: 14, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 28)
+        .padding(.vertical, 86)
+        .background(TradeTheme.paper)
     }
 }
 
