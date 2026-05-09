@@ -148,13 +148,22 @@ export class BrokerageDataService {
       })
     ]);
 
-    const candidates = [
-      ...positions.map((position) => this.positionToCandidate(user.id, account, position)),
-      ...optionHoldings.map((holding) => this.optionToCandidate(user.id, account, holding)),
-      ...activities
-        .map((activity) => this.activityToClosedCandidate(user.id, account, activity))
-        .filter((candidate): candidate is JsonRecord => candidate !== null)
-    ];
+    const candidates: JsonRecord[] = [];
+
+    for (const position of positions) {
+      candidates.push(await this.positionToCandidate(user.id, account, position));
+    }
+
+    for (const holding of optionHoldings) {
+      candidates.push(await this.optionToCandidate(user.id, account, holding));
+    }
+
+    for (const activity of activities) {
+      const candidate = await this.activityToClosedCandidate(user.id, account, activity);
+      if (candidate) {
+        candidates.push(candidate);
+      }
+    }
 
     if (candidates.length === 0) {
       return { createdOrUpdated: 0 };
@@ -297,12 +306,13 @@ export class BrokerageDataService {
     };
   }
 
-  private positionToCandidate(
+  private async positionToCandidate(
     seekUserId: string,
     account: BrokerageAccountRecord,
     raw: JsonRecord
-  ): JsonRecord {
+  ): Promise<JsonRecord> {
     const symbol = symbolFrom(raw) ?? "UNKNOWN";
+    const instrumentId = await this.upsertInstrument(raw, "position");
     const quantity = numberFrom(raw.units, raw.quantity, raw.shares);
     const entryPrice = numberFrom(raw.average_purchase_price, raw.averagePrice, raw.cost_basis);
     const markPrice = numberFrom(raw.price, raw.market_value_price, raw.last_price);
@@ -311,6 +321,7 @@ export class BrokerageDataService {
     return {
       seek_user_id: seekUserId,
       brokerage_account_id: account.id,
+      instrument_id: instrumentId,
       provider: "snaptrade",
       provider_source_type: "position",
       provider_source_id: `${account.provider_account_id}:${symbol}`,
@@ -325,12 +336,13 @@ export class BrokerageDataService {
     };
   }
 
-  private optionToCandidate(
+  private async optionToCandidate(
     seekUserId: string,
     account: BrokerageAccountRecord,
     raw: JsonRecord
-  ): JsonRecord {
+  ): Promise<JsonRecord> {
     const symbol = symbolFrom(raw) ?? "OPTION";
+    const instrumentId = await this.upsertInstrument(raw, "option_position");
     const quantity = numberFrom(raw.units, raw.quantity, raw.contracts);
     const entryPrice = numberFrom(raw.average_purchase_price, raw.averagePrice, raw.cost_basis);
     const markPrice = numberFrom(raw.price, raw.market_value_price, raw.last_price);
@@ -339,6 +351,7 @@ export class BrokerageDataService {
     return {
       seek_user_id: seekUserId,
       brokerage_account_id: account.id,
+      instrument_id: instrumentId,
       provider: "snaptrade",
       provider_source_type: "option_position",
       provider_source_id: `${account.provider_account_id}:option:${symbol}`,
@@ -353,11 +366,11 @@ export class BrokerageDataService {
     };
   }
 
-  private activityToClosedCandidate(
+  private async activityToClosedCandidate(
     seekUserId: string,
     account: BrokerageAccountRecord,
     raw: JsonRecord
-  ): JsonRecord | null {
+  ): Promise<JsonRecord | null> {
     const action = firstString(raw.action, raw.type, raw.transaction_type)?.toLowerCase();
     const symbol = symbolFrom(raw);
     if (!symbol || !action || !["sell", "sold", "trade"].some((term) => action.includes(term))) {
@@ -366,10 +379,12 @@ export class BrokerageDataService {
 
     const tradeDate = firstString(raw.trade_date, raw.settlement_date, raw.date, raw.created_at);
     const price = numberFrom(raw.price, raw.execution_price, raw.net_amount);
+    const instrumentId = await this.upsertInstrument(raw, "activity");
 
     return {
       seek_user_id: seekUserId,
       brokerage_account_id: account.id,
+      instrument_id: instrumentId,
       provider: "snaptrade",
       provider_source_type: "activity",
       provider_source_id: firstString(raw.id, raw.activity_id) ?? `${account.provider_account_id}:activity:${symbol}:${tradeDate ?? Date.now()}`,
@@ -381,6 +396,28 @@ export class BrokerageDataService {
       closed_at: tradeDate,
       raw
     };
+  }
+
+  private async upsertInstrument(
+    raw: JsonRecord,
+    sourceType: "position" | "option_position" | "activity"
+  ): Promise<string | null> {
+    const instrument = instrumentFrom(raw, sourceType);
+    if (!instrument) {
+      return null;
+    }
+
+    const { data, error } = await this.db
+      .from("instruments")
+      .upsert(instrument, { onConflict: "provider,provider_symbol_id" })
+      .select("id")
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to upsert instrument: ${error.message}`);
+    }
+
+    return firstString(asRecord(data).id);
   }
 }
 
@@ -446,6 +483,75 @@ function symbolFrom(raw: JsonRecord): string | null {
   );
 }
 
+function instrumentFrom(
+  raw: JsonRecord,
+  sourceType: "position" | "option_position" | "activity"
+): JsonRecord | null {
+  const symbol = symbolFrom(raw);
+  if (!symbol) {
+    return null;
+  }
+
+  const providerSymbolId = providerSymbolIdFrom(raw, sourceType, symbol);
+  const assetClass = assetClassFrom(raw, sourceType);
+  const exchangeCode = exchangeCodeFrom(raw);
+  const currencyCode = currencyCodeFrom(raw);
+
+  return {
+    provider: "snaptrade",
+    provider_symbol_id: providerSymbolId,
+    symbol,
+    raw_symbol: rawSymbolFrom(raw) ?? symbol,
+    name: instrumentNameFrom(raw) ?? symbol,
+    asset_class: assetClass,
+    exchange_code: exchangeCode,
+    currency_code: currencyCode,
+    polygon_ticker: polygonTickerFrom(symbol, assetClass),
+    option_type: assetClass === "option" ? optionTypeFrom(raw) : null,
+    strike_price: assetClass === "option" ? optionStrikeFrom(raw) : null,
+    expiration_date: assetClass === "option" ? optionExpirationFrom(raw) : null,
+    raw
+  };
+}
+
+function providerSymbolIdFrom(
+  raw: JsonRecord,
+  sourceType: "position" | "option_position" | "activity",
+  symbol: string
+): string {
+  const symbolRecord = asRecord(raw.symbol);
+  const security = asRecord(raw.security);
+  const universalSymbol = asRecord(raw.universal_symbol);
+  const optionSymbol = asRecord(raw.option_symbol);
+  const underlying = asRecord(raw.underlying_symbol);
+  const instrument = asRecord(raw.instrument);
+  return firstString(
+    raw.symbol_id,
+    raw.security_id,
+    symbolRecord.id,
+    security.id,
+    universalSymbol.id,
+    optionSymbol.id,
+    underlying.id,
+    instrument.id
+  ) ?? `${sourceType}:${symbol}`;
+}
+
+function rawSymbolFrom(raw: JsonRecord): string | null {
+  const symbol = asRecord(raw.symbol);
+  const security = asRecord(raw.security);
+  const universalSymbol = asRecord(raw.universal_symbol);
+  const optionSymbol = asRecord(raw.option_symbol);
+  return firstString(
+    raw.raw_symbol,
+    raw.symbol_symbol,
+    symbol.raw_symbol,
+    security.raw_symbol,
+    universalSymbol.raw_symbol,
+    optionSymbol.raw_symbol
+  );
+}
+
 function instrumentNameFrom(raw: JsonRecord): string | null {
   const symbol = asRecord(raw.symbol);
   const security = asRecord(raw.security);
@@ -472,6 +578,133 @@ function instrumentNameFrom(raw: JsonRecord): string | null {
     instrument.name,
     instrument.description
   );
+}
+
+function assetClassFrom(
+  raw: JsonRecord,
+  sourceType: "position" | "option_position" | "activity"
+): string {
+  if (sourceType === "option_position") {
+    return "option";
+  }
+
+  const symbol = asRecord(raw.symbol);
+  const security = asRecord(raw.security);
+  const universalSymbol = asRecord(raw.universal_symbol);
+  const optionSymbol = asRecord(raw.option_symbol);
+  const text = firstString(
+    raw.asset_class,
+    raw.security_type,
+    raw.instrument_type,
+    raw.type,
+    symbol.type,
+    security.type,
+    universalSymbol.type,
+    optionSymbol.type
+  )?.toLowerCase();
+
+  if (!text) {
+    return "equity";
+  }
+  if (text.includes("option")) {
+    return "option";
+  }
+  if (text.includes("future")) {
+    return "future";
+  }
+  if (text.includes("crypto")) {
+    return "crypto";
+  }
+  if (text.includes("cash") || text.includes("currency")) {
+    return "cash";
+  }
+  if (text.includes("fund") || text.includes("etf")) {
+    return "fund";
+  }
+  return "equity";
+}
+
+function exchangeCodeFrom(raw: JsonRecord): string | null {
+  const symbol = asRecord(raw.symbol);
+  const security = asRecord(raw.security);
+  const universalSymbol = asRecord(raw.universal_symbol);
+  const exchange = asRecord(raw.exchange);
+  return firstString(
+    raw.exchange_code,
+    raw.exchange,
+    raw.listing_exchange,
+    symbol.exchange_code,
+    symbol.exchange,
+    security.exchange_code,
+    security.exchange,
+    universalSymbol.exchange_code,
+    universalSymbol.exchange,
+    exchange.code,
+    exchange.mic_code,
+    exchange.name
+  );
+}
+
+function currencyCodeFrom(raw: JsonRecord): string | null {
+  const symbol = asRecord(raw.symbol);
+  const security = asRecord(raw.security);
+  const universalSymbol = asRecord(raw.universal_symbol);
+  return firstString(
+    raw.currency,
+    raw.currency_code,
+    symbol.currency,
+    symbol.currency_code,
+    security.currency,
+    security.currency_code,
+    universalSymbol.currency,
+    universalSymbol.currency_code
+  );
+}
+
+function polygonTickerFrom(symbol: string, assetClass: string): string | null {
+  if (assetClass !== "equity" && assetClass !== "fund") {
+    return null;
+  }
+  return symbol;
+}
+
+function optionTypeFrom(raw: JsonRecord): string | null {
+  const optionSymbol = asRecord(raw.option_symbol);
+  const text = firstString(raw.option_type, raw.type, optionSymbol.option_type, optionSymbol.type)?.toLowerCase();
+  if (!text) {
+    return null;
+  }
+  if (text.includes("call")) {
+    return "call";
+  }
+  if (text.includes("put")) {
+    return "put";
+  }
+  return text;
+}
+
+function optionStrikeFrom(raw: JsonRecord): number | undefined {
+  const optionSymbol = asRecord(raw.option_symbol);
+  return numberFrom(raw.strike_price, raw.strike, optionSymbol.strike_price, optionSymbol.strike);
+}
+
+function optionExpirationFrom(raw: JsonRecord): string | null {
+  const optionSymbol = asRecord(raw.option_symbol);
+  const value = firstString(
+    raw.expiration_date,
+    raw.expiry_date,
+    raw.expiration,
+    raw.expiry,
+    optionSymbol.expiration_date,
+    optionSymbol.expiry_date,
+    optionSymbol.expiration,
+    optionSymbol.expiry
+  );
+  if (!value) {
+    return null;
+  }
+  const dateOnly = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  return dateOnly ?? null;
 }
 
 function percentReturn(entryPrice?: number, markPrice?: number): number | undefined {
