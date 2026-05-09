@@ -414,7 +414,12 @@ struct OnboardingView: View {
             settings.authEmail = email
             settings.accessToken = session.accessToken
             statusText = "Signed in"
-            step = .connectBrokerage
+            await loadExistingBrokerageState()
+            if connections.isEmpty {
+                step = .connectBrokerage
+            } else {
+                finishOnboarding()
+            }
         } catch {
             statusText = error.localizedDescription
         }

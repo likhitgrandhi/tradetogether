@@ -174,7 +174,7 @@ export class BrokerageDataService {
   async listTradeCandidates(user: AuthenticatedUser): Promise<JsonRecord[]> {
     const { data, error } = await this.db
       .from("verified_trade_candidates")
-      .select("id, side, status, quantity, entry_price, exit_price, mark_price, realized_pnl, unrealized_pnl, return_percent, provider_source_type, created_at, instruments(symbol, name)")
+      .select("id, side, status, quantity, entry_price, exit_price, mark_price, realized_pnl, unrealized_pnl, return_percent, provider_source_type, created_at, raw, instruments(symbol, name)")
       .eq("seek_user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -184,6 +184,7 @@ export class BrokerageDataService {
 
     return ((data ?? []) as JsonRecord[]).map((candidate) => {
       const instrument = asRecord(candidate.instruments);
+      const raw = asRecord(candidate.raw);
       return {
         id: candidate.id,
         side: candidate.side,
@@ -197,8 +198,8 @@ export class BrokerageDataService {
         return_percent: candidate.return_percent,
         provider_source_type: candidate.provider_source_type,
         created_at: candidate.created_at,
-        symbol: firstString(instrument.symbol) ?? "UNKNOWN",
-        instrument_name: firstString(instrument.name)
+        symbol: firstString(instrument.symbol, symbolFrom(raw)) ?? "UNKNOWN",
+        instrument_name: firstString(instrument.name, instrumentNameFrom(raw), symbolFrom(raw))
       };
     });
   }
@@ -389,8 +390,11 @@ function asRecord(value: unknown): JsonRecord {
 
 function firstString(...values: unknown[]): string | null {
   for (const value of values) {
-    if (typeof value === "string" && value.length > 0) {
-      return value;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
     }
     if (typeof value === "number") {
       return String(value);
@@ -417,8 +421,57 @@ function numberFrom(...values: unknown[]): number | undefined {
 function symbolFrom(raw: JsonRecord): string | null {
   const symbol = asRecord(raw.symbol);
   const security = asRecord(raw.security);
+  const universalSymbol = asRecord(raw.universal_symbol);
   const optionSymbol = asRecord(raw.option_symbol);
-  return firstString(raw.symbol, raw.ticker, symbol.symbol, symbol.raw_symbol, security.symbol, optionSymbol.symbol);
+  const underlying = asRecord(raw.underlying_symbol);
+  const instrument = asRecord(raw.instrument);
+  return firstString(
+    raw.symbol,
+    raw.ticker,
+    raw.symbol_symbol,
+    raw.raw_symbol,
+    symbol.symbol,
+    symbol.raw_symbol,
+    symbol.ticker,
+    security.symbol,
+    security.raw_symbol,
+    universalSymbol.symbol,
+    universalSymbol.raw_symbol,
+    optionSymbol.symbol,
+    optionSymbol.raw_symbol,
+    underlying.symbol,
+    underlying.raw_symbol,
+    instrument.symbol,
+    instrument.raw_symbol
+  );
+}
+
+function instrumentNameFrom(raw: JsonRecord): string | null {
+  const symbol = asRecord(raw.symbol);
+  const security = asRecord(raw.security);
+  const universalSymbol = asRecord(raw.universal_symbol);
+  const optionSymbol = asRecord(raw.option_symbol);
+  const underlying = asRecord(raw.underlying_symbol);
+  const instrument = asRecord(raw.instrument);
+  return firstString(
+    raw.name,
+    raw.description,
+    raw.symbol_description,
+    raw.security_name,
+    symbol.name,
+    symbol.description,
+    symbol.symbol_description,
+    security.name,
+    security.description,
+    universalSymbol.name,
+    universalSymbol.description,
+    optionSymbol.name,
+    optionSymbol.description,
+    underlying.name,
+    underlying.description,
+    instrument.name,
+    instrument.description
+  );
 }
 
 function percentReturn(entryPrice?: number, markPrice?: number): number | undefined {
