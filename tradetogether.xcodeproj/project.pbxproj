@@ -400,7 +400,7 @@
 				DEVELOPMENT_TEAM = 35AMDQP39Q;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Config/GrowHouse-Info.plist;
+				INFOPLIST_FILE = "Config/GrowHouse-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -428,7 +428,7 @@
 				DEVELOPMENT_TEAM = 35AMDQP39Q;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Config/GrowHouse-Info.plist;
+				INFOPLIST_FILE = "Config/GrowHouse-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

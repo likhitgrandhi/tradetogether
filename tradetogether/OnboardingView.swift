@@ -58,6 +58,8 @@ struct OnboardingView: View {
             }
             .padding(.top, 8)
         }
+        .contentShape(Rectangle())
+        .dismissKeyboardOnBackgroundTap()
         .onOpenURL { _ in
             guard step == .connectBrokerage else { return }
             Task {

@@ -330,6 +330,8 @@ struct TradeComposerView: View {
                 addThreadButton
             }
         }
+        .interactiveKeyboardDismissal()
+        .dismissKeyboardOnBackgroundTap()
         .background(TradeTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
     }

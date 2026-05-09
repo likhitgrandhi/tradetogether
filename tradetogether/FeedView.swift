@@ -58,6 +58,7 @@ struct FeedView: View {
                     }
                 }
             }
+            .interactiveKeyboardDismissal()
             .coordinateSpace(name: "FeedScroll")
             .refreshable {
                 await performRefresh()
@@ -474,6 +475,8 @@ struct PostDetailView: View {
                     repliesList
                 }
             }
+            .interactiveKeyboardDismissal()
+            .dismissKeyboardOnBackgroundTap()
 
             composerBar
         }
