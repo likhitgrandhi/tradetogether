@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: growhouse-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: cd api && npm install && npm run build
+    startCommand: cd api && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_BASE_URL
+        sync: false
+      - key: IOS_DEEP_LINK_SCHEME
+        value: growhouse
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SNAPTRADE_CLIENT_ID
+        sync: false
+      - key: SNAPTRADE_CONSUMER_KEY
+        sync: false
+      - key: SNAPTRADE_USER_SECRET_ENCRYPTION_KEY
+        sync: false
+      - key: SNAPTRADE_WEBHOOK_SIGNING_SECRET
+        sync: false
+      - key: TWELVE_DATA_API_KEY
+        sync: false

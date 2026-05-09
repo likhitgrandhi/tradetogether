@@ -176,14 +176,18 @@ enum TradeTheme {
 }
 
 extension Font {
-    static let tradeScreenTitle = Font.system(size: 17, weight: .bold)
-    static let tradeDisplayName = Font.system(size: 15, weight: .semibold)
-    static let tradePostBody = Font.system(size: 15, weight: .regular)
-    static let tradeQuotedBody = Font.system(size: 14, weight: .regular)
-    static let tradeHandle = Font.system(size: 14, weight: .regular)
-    static let tradeActionCount = Font.system(size: 13, weight: .regular)
-    static let tradeButton = Font.system(size: 15, weight: .semibold)
-    static let tradeFilterChip = Font.system(size: 14, weight: .semibold)
+    static func seek(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design? = nil) -> Font {
+        Font.custom("Inter", size: size).weight(weight)
+    }
+
+    static let tradeScreenTitle = Font.seek(size: 17, weight: .bold)
+    static let tradeDisplayName = Font.seek(size: 15, weight: .semibold)
+    static let tradePostBody = Font.seek(size: 15, weight: .regular)
+    static let tradeQuotedBody = Font.seek(size: 14, weight: .regular)
+    static let tradeHandle = Font.seek(size: 14, weight: .regular)
+    static let tradeActionCount = Font.seek(size: 13, weight: .regular)
+    static let tradeButton = Font.seek(size: 15, weight: .semibold)
+    static let tradeFilterChip = Font.seek(size: 14, weight: .semibold)
 }
 
 struct TradePressableStyle: ButtonStyle {

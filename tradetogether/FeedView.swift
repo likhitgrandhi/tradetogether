@@ -247,10 +247,10 @@ struct FeedView: View {
     private var followingSectionHeader: some View {
         HStack(spacing: 6) {
             Text("Recommended")
-                .font(.headline)
+                .font(.seek(size: 17, weight: .regular))
                 .foregroundStyle(TradeTheme.ink)
             Image(systemName: "chevron.down")
-                .font(.caption.weight(.bold))
+                .font(.seek(size: 12, weight: .bold))
                 .foregroundStyle(TradeTheme.ink)
             Spacer()
         }
@@ -345,7 +345,7 @@ struct CreatorRailItem: View {
         Button(action: action) {
             VStack(spacing: 8) {
                 Text(initials)
-                    .font(.system(size: initials == "..." ? 16 : 13, weight: .black))
+                    .font(.seek(size: initials == "..." ? 16 : 13, weight: .black))
                     .foregroundStyle(initials == "..." ? TradeTheme.ink : .white)
                     .frame(width: 44, height: 44)
                     .background(color)
@@ -357,7 +357,7 @@ struct CreatorRailItem: View {
                     .overlay(alignment: .bottomTrailing) {
                         if showsBadge {
                             Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 13))
+                                .font(.seek(size: 13))
                                 .foregroundStyle(TradeTheme.verified)
                                 .background(Circle().fill(TradeTheme.paper).frame(width: 11, height: 11))
                                 .offset(x: 2, y: 2)
@@ -414,7 +414,7 @@ struct StockRailItem: View {
                 .frame(width: 25, height: 25)
                 .offset(x: 8, y: -8)
             Text(symbol)
-                .font(.system(size: symbol == "*" ? 17 : 13, weight: .black))
+                .font(.seek(size: symbol == "*" ? 17 : 13, weight: .black))
                 .foregroundStyle(symbol == "*" ? TradeTheme.ink : .white)
         }
     }
@@ -426,22 +426,22 @@ struct MarketOverviewTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text("CLOSED")
-                .font(.system(size: 10, weight: .bold))
+                .font(.seek(size: 10, weight: .bold))
                 .foregroundStyle(TradeTheme.muted)
             Text(stock.symbol)
-                .font(.headline.weight(.bold))
+                .font(.seek(size: 17, weight: .bold))
                 .foregroundStyle(TradeTheme.ink)
                 .lineLimit(2)
                 .minimumScaleFactor(0.74)
             Spacer(minLength: 2)
             Text(stock.price.cleanPrice)
-                .font(.subheadline.monospacedDigit().weight(.semibold))
+                .font(.seek(size: 15, weight: .semibold).monospacedDigit())
                 .foregroundStyle(stock.changePercent >= 0 ? TradeTheme.gain : TradeTheme.loss)
             HStack(spacing: 5) {
                 Text(stock.changePercent.percentText)
-                    .font(.subheadline.monospacedDigit().weight(.semibold))
+                    .font(.seek(size: 15, weight: .semibold).monospacedDigit())
                 Image(systemName: "triangle.fill")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.seek(size: 9, weight: .bold))
                     .rotationEffect(stock.changePercent >= 0 ? .zero : .degrees(180))
             }
             .foregroundStyle(stock.changePercent >= 0 ? TradeTheme.gain : TradeTheme.loss)
@@ -457,6 +457,9 @@ struct PostDetailView: View {
     let post: TradeIdea
     let store: DemoStore
     @Environment(\.dismiss) private var dismiss
+    @State private var isCommentComposerOpen = false
+    @State private var commentDraft = ""
+    @FocusState private var isCommentFocused: Bool
 
     var body: some View {
         let author = store.profile(id: post.authorID)
@@ -468,55 +471,11 @@ struct PostDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     detailedPost(author: author, stock: stock)
-
-                    HStack(spacing: 0) {
-                        PostActionButton(title: "\(post.votes)", icon: "heart")
-                        PostActionButton(title: "\(post.comments)", icon: "bubble.left")
-                        PostActionButton(title: "", icon: "arrow.2.squarepath")
-                        PostActionButton(title: "", icon: "paperplane")
-                    }
-                    .padding(.vertical, 8)
-                    .background(TradeTheme.paper)
-                    .overlay(alignment: .bottom) {
-                        Rectangle()
-                            .fill(TradeTheme.line)
-                            .frame(height: 1)
-                    }
-
-                    VStack(alignment: .leading, spacing: 14) {
-                        NavigationLink {
-                            StockDetailView(stock: stock, store: store)
-                        } label: {
-                            Label("Open Quote", systemImage: "chart.xyaxis.line")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(TradeTheme.brandBlue)
-                        .foregroundStyle(.black)
-
-                        NavigationLink {
-                            ProfileView(profile: author, posts: store.posts(for: author), store: store)
-                        } label: {
-                            Label("Profile", systemImage: "person")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(TradeTheme.brandBlue)
-                    }
-                    .padding(20)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(title: post.status.isClosed ? "Closed Trade" : "Open Trade", subtitle: tradePlanSubtitle(stock: stock))
-                        HStack(spacing: 8) {
-                            MetricPill(title: "Entry", value: price(post.entry, stock: stock))
-                            MetricPill(title: post.status.isClosed ? "Exit" : "Target", value: post.status.isClosed ? exitPrice(stock: stock) : price(post.target, stock: stock), tint: post.status.isClosed ? resultColor(stock: stock) : TradeTheme.gain)
-                            MetricPill(title: post.status.isClosed ? "Result" : "Stop", value: post.status.isClosed ? post.status.rawValue : price(post.stop, stock: stock), tint: post.status.isClosed ? resultColor(stock: stock) : TradeTheme.loss)
-                        }
-                    }
-                    .padding(20)
-                    .background(TradeTheme.panel)
+                    repliesList
                 }
             }
+
+            composerBar
         }
         .background(TradeTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
@@ -528,25 +487,93 @@ struct PostDetailView: View {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.seek(size: 19, weight: .semibold))
                     .foregroundStyle(TradeTheme.ink)
                     .frame(width: 44, height: 44, alignment: .leading)
             }
             .buttonStyle(TradePressableStyle())
 
             Spacer()
-            Text("Post")
-                .font(.tradeScreenTitle)
-                .foregroundStyle(TradeTheme.ink)
-            Spacer()
-            Image(systemName: "ellipsis")
-                .font(.system(size: 18))
-                .foregroundStyle(TradeTheme.ink)
-                .frame(width: 44, height: 44, alignment: .trailing)
+            HStack(spacing: 18) {
+                Image(systemName: "ellipsis")
+                    .font(.seek(size: 18, weight: .semibold))
+                    .foregroundStyle(TradeTheme.ink)
+            }
+            .frame(width: 44, height: 44, alignment: .trailing)
         }
         .padding(.horizontal, 16)
         .padding(.top, 4)
         .padding(.bottom, 2)
+        .background(TradeTheme.paper)
+    }
+
+    private func detailedPost(author: TraderProfile, stock: StockInstrument) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 12) {
+                NavigationLink {
+                    ProfileView(profile: author, posts: store.posts(for: author), store: store)
+                } label: {
+                    TraderAvatar(profile: author, size: 40)
+                }
+                .buttonStyle(TradePressableStyle())
+
+                Text(author.handle)
+                    .font(.seek(size: 17, weight: .bold))
+                    .foregroundStyle(TradeTheme.ink)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                Button {} label: {
+                    Text("Follow")
+                        .font(.seek(size: 14, weight: .bold))
+                        .foregroundStyle(TradeTheme.paper)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 9)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(TradeTheme.ink))
+                }
+                .buttonStyle(TradePressableStyle())
+            }
+
+            Text("\(post.title). \(post.thesis)")
+                .font(.seek(size: 15, weight: .regular))
+                .lineSpacing(4)
+                .foregroundStyle(TradeTheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            NavigationLink {
+                StockDetailView(stock: stock, store: store)
+            } label: {
+                Text("See original")
+                    .font(.seek(size: 14, weight: .semibold))
+                    .foregroundStyle(TradeTheme.chartBlue)
+            }
+            .buttonStyle(TradePressableStyle())
+
+            TradeTicketView(post: post, stock: stock)
+
+            Text("Disclaimer: Includes third-party opinions. No financial advice. May include sponsored content. See T&Cs.")
+                .font(.seek(size: 12, weight: .regular))
+                .lineSpacing(3)
+                .foregroundStyle(TradeTheme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 12) {
+                Text(detailTimestamp)
+                    .foregroundStyle(TradeTheme.muted)
+                Text("82.4K")
+                    .fontWeight(.bold)
+                    .foregroundStyle(TradeTheme.ink)
+                Text("Views")
+                    .foregroundStyle(TradeTheme.muted)
+            }
+            .font(.seek(size: 15, weight: .regular))
+
+            detailActionRow
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 18)
+        .padding(.bottom, 18)
         .background(TradeTheme.paper)
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -555,64 +582,151 @@ struct PostDetailView: View {
         }
     }
 
-    private func detailedPost(author: TraderProfile, stock: StockInstrument) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                TraderAvatar(profile: author, size: 40)
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(author.handle)
-                            .font(.tradeDisplayName)
-                            .foregroundStyle(TradeTheme.ink)
-                        Text("(WR: \(winRateText(author)))")
-                            .font(.tradeActionCount.weight(.semibold))
-                            .foregroundStyle(TradeTheme.gain)
-                        Text(post.postedAgo)
-                            .font(.tradeHandle)
-                            .foregroundStyle(TradeTheme.muted)
-                    }
-                    Text(tradeHeadline(stock: stock))
-                        .font(.tradeHandle.weight(.semibold))
-                        .foregroundStyle(TradeTheme.ink)
-                }
-                Spacer()
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18))
-                    .foregroundStyle(TradeTheme.muted)
-            }
-
-            Text("\(post.title). \(post.thesis)")
-                .font(.tradePostBody)
-                .lineSpacing(5)
-                .foregroundStyle(TradeTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-
-            TradeTicketView(post: post, stock: stock)
-
-            Text("12:36 PM - \(post.postedAgo) - Seek for iOS")
-                .font(.subheadline)
-                .foregroundStyle(TradeTheme.muted)
-
-            HStack(spacing: 12) {
-                Text("\(post.votes)")
-                    .font(.headline.monospacedDigit().weight(.bold))
-                    .foregroundStyle(TradeTheme.ink)
-                Text("Reposts")
-                    .foregroundStyle(TradeTheme.muted)
-                Text("\(post.comments)")
-                    .font(.headline.monospacedDigit().weight(.bold))
-                    .foregroundStyle(TradeTheme.ink)
-                Text("Replies")
-                    .foregroundStyle(TradeTheme.muted)
-            }
-            .font(.subheadline)
+    private var detailActionRow: some View {
+        HStack(spacing: 0) {
+            detailAction(icon: "bubble.left", title: "\(post.comments)")
+            detailAction(icon: "arrow.2.squarepath", title: "0")
+            detailAction(icon: "hand.thumbsup", title: "\(post.votes)")
+            detailAction(icon: "chart.bar", title: "6")
+            detailAction(icon: "arrowshape.turn.up.right", title: "4")
         }
-        .padding(20)
+        .padding(.top, 2)
+    }
+
+    private func detailAction(icon: String, title: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.seek(size: 22, weight: .regular))
+            Text(title)
+                .font(.seek(size: 13, weight: .regular))
+                .monospacedDigit()
+        }
+        .foregroundStyle(TradeTheme.muted)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var repliesList: some View {
+        VStack(spacing: 0) {
+            PostReplyRow(
+                initials: "SR",
+                name: "Sofia Reyes",
+                time: "May 7",
+                text: "Nice plan. I would watch whether the bid stays above entry after the first thirty minutes.",
+                likes: 3
+            )
+            PostReplyRow(
+                initials: "AR",
+                name: "Arjun Rao",
+                time: "2h",
+                text: "Clean risk box. The stop makes sense if volume dries up near the level.",
+                likes: 1
+            )
+        }
         .background(TradeTheme.paper)
-        .overlay(alignment: .bottom) {
+    }
+
+    private var composerBar: some View {
+        VStack(spacing: 10) {
+            if isCommentComposerOpen {
+                VStack(alignment: .leading, spacing: 10) {
+                    TextField("Comment", text: $commentDraft, axis: .vertical)
+                        .font(.seek(size: 15, weight: .regular))
+                        .foregroundStyle(TradeTheme.ink)
+                        .lineLimit(2...5)
+                        .padding(.vertical, 6)
+                        .focused($isCommentFocused)
+
+                    HStack(spacing: 12) {
+                        Button("Cancel") {
+                            closeCommentComposer()
+                        }
+                        .font(.seek(size: 14, weight: .semibold))
+                        .foregroundStyle(TradeTheme.muted)
+                        .buttonStyle(TradePressableStyle())
+
+                        Spacer()
+
+                        Button {
+                            closeCommentComposer(clearDraft: true)
+                        } label: {
+                            Text("Post")
+                                .font(.seek(size: 14, weight: .bold))
+                                .foregroundStyle(commentDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? TradeTheme.muted : TradeTheme.paper)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Capsule()
+                                        .fill(commentDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? TradeTheme.tile : TradeTheme.ink)
+                                )
+                        }
+                        .disabled(commentDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .buttonStyle(TradePressableStyle())
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 12)
+                .padding(.bottom, 12)
+            } else {
+                HStack(spacing: 14) {
+                    Button {
+                        openCommentComposer()
+                    } label: {
+                        Text("Comment")
+                            .font(.seek(size: 15, weight: .regular))
+                            .foregroundStyle(TradeTheme.muted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .frame(height: 44)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(TradeTheme.tile))
+                    }
+                    .buttonStyle(TradePressableStyle())
+
+                    Image(systemName: "bubble.left")
+                    Image(systemName: "arrow.2.squarepath")
+                    Image(systemName: "hand.thumbsup")
+                    Image(systemName: "arrowshape.turn.up.right")
+                }
+                .font(.seek(size: 21, weight: .regular))
+                .foregroundStyle(TradeTheme.muted)
+                .padding(.horizontal, 22)
+                .padding(.top, 10)
+                .padding(.bottom, 12)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background {
+            Group {
+                if isCommentComposerOpen {
+                    TradeTheme.tile
+                        .ignoresSafeArea(.container, edges: .bottom)
+                } else {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea(.container, edges: .bottom)
+                }
+            }
+        }
+        .overlay(alignment: .top) {
             Rectangle()
                 .fill(TradeTheme.line)
                 .frame(height: 1)
+        }
+    }
+
+    private func openCommentComposer() {
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+            isCommentComposerOpen = true
+        }
+        isCommentFocused = true
+    }
+
+    private func closeCommentComposer(clearDraft: Bool = false) {
+        isCommentFocused = false
+        if clearDraft {
+            commentDraft = ""
+        }
+        withAnimation(.easeInOut(duration: 0.18)) {
+            isCommentComposerOpen = false
         }
     }
 
@@ -628,6 +742,17 @@ struct PostDetailView: View {
     private func tradeHeadline(stock: StockInstrument) -> String {
         let state = post.status.isClosed ? "Closed" : "Opened"
         return "\(state) \(post.direction.rawValue.lowercased()) \(post.product.rawValue.lowercased()) in \(stock.symbol)"
+    }
+
+    private var detailTimestamp: String {
+        switch post.postedAgo {
+        case "18m": "1:39 PM"
+        case "44m": "1:13 PM"
+        case "2h": "11:57 AM"
+        case "3h": "10:44 AM"
+        case "1d": "May 8"
+        default: "May 7"
+        }
     }
 
     private func tradePlanSubtitle(stock: StockInstrument) -> String {
@@ -656,6 +781,73 @@ struct PostDetailView: View {
     }
 }
 
+struct PostReplyRow: View {
+    let initials: String
+    let name: String
+    let time: String
+    let text: String
+    let likes: Int
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(AvatarColor.color(for: name))
+                Text(initials)
+                    .font(.seek(size: 13, weight: .black))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 38, height: 38)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(name)
+                        .font(.seek(size: 15, weight: .bold))
+                        .foregroundStyle(TradeTheme.ink)
+                    Text("- \(time)")
+                        .font(.seek(size: 14, weight: .regular))
+                        .foregroundStyle(TradeTheme.muted)
+                    Spacer(minLength: 0)
+                    Image(systemName: "ellipsis")
+                        .font(.seek(size: 15, weight: .semibold))
+                        .foregroundStyle(TradeTheme.muted)
+                }
+
+                Text(text)
+                    .font(.seek(size: 15, weight: .regular))
+                    .lineSpacing(4)
+                    .foregroundStyle(TradeTheme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 38) {
+                    Image(systemName: "bubble.left")
+                    Image(systemName: "arrow.2.squarepath")
+                    HStack(spacing: 5) {
+                        Image(systemName: "hand.thumbsup")
+                        if likes > 0 {
+                            Text("\(likes)")
+                                .font(.seek(size: 12, weight: .regular))
+                        }
+                    }
+                    Image(systemName: "chart.bar")
+                    Image(systemName: "arrowshape.turn.up.right")
+                }
+                .font(.seek(size: 16, weight: .regular))
+                .foregroundStyle(TradeTheme.muted)
+                .padding(.top, 2)
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+        .background(TradeTheme.paper)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(TradeTheme.line)
+                .frame(height: 1)
+        }
+    }
+}
+
 struct PostActionButton: View {
     let title: String
     let icon: String
@@ -667,7 +859,7 @@ struct PostActionButton: View {
                 Text(title)
             }
         }
-        .font(.system(size: 13, weight: .regular))
+        .font(.seek(size: 13, weight: .regular))
         .foregroundStyle(TradeTheme.muted)
         .frame(maxWidth: .infinity)
     }

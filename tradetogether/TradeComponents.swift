@@ -16,17 +16,17 @@ struct MarketTapeView: View {
                 ForEach(stocks) { stock in
                     VStack(alignment: .leading, spacing: 5) {
                         Text("CLOSED")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.seek(size: 9, weight: .bold))
                             .foregroundStyle(TradeTheme.muted)
                         Text(stock.symbol)
-                            .font(.caption.weight(.bold))
+                            .font(.seek(size: 12, weight: .bold))
                             .foregroundStyle(TradeTheme.ink)
                             .lineLimit(1)
                         HStack(spacing: 4) {
                             Text(stock.changePercent.percentText)
-                                .font(.caption2.monospacedDigit().weight(.bold))
+                                .font(.seek(size: 11, weight: .bold).monospacedDigit())
                             Image(systemName: stock.changePercent >= 0 ? "triangle.fill" : "triangle.fill")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(.seek(size: 8, weight: .bold))
                                 .rotationEffect(stock.changePercent >= 0 ? .zero : .degrees(180))
                         }
                         .foregroundStyle(stock.changePercent >= 0 ? TradeTheme.gain : TradeTheme.loss)
@@ -82,7 +82,7 @@ struct UpDownLogo: View {
         .scaleEffect(1 + progress * 0.08)
         .animation(.spring(response: 0.26, dampingFraction: 0.74), value: progress)
         .animation(isRefreshing && !reduceMotion ? .linear(duration: 0.95).repeatForever(autoreverses: false) : .default, value: isRefreshing)
-        .accessibilityLabel("Seek")
+        .accessibilityLabel("GrowHouse")
     }
 }
 
@@ -171,7 +171,7 @@ struct WSJMasthead: View {
                         Image(systemName: "chevron.left")
                         Text("Back")
                     }
-                    .font(.title3)
+                    .font(.seek(size: 20, weight: .regular))
                     .foregroundStyle(TradeTheme.ink)
                 }
                     .buttonStyle(.plain)
@@ -186,7 +186,7 @@ struct WSJMasthead: View {
             Spacer()
 
             Image(systemName: showBackHint ? "magnifyingglass" : "bubble.right")
-                .font(.system(size: 24, weight: .regular))
+                .font(.seek(size: 24, weight: .regular))
                 .foregroundStyle(TradeTheme.ink)
                 .frame(width: 56, height: 34, alignment: .trailing)
         }
@@ -203,12 +203,12 @@ struct SectionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title.uppercased())
-                .font(.caption.weight(.bold))
+                .font(.seek(size: 12, weight: .bold))
                 .tracking(1.2)
                 .foregroundStyle(TradeTheme.muted)
             if let subtitle {
                 Text(subtitle)
-                    .font(.caption)
+                    .font(.seek(size: 12, weight: .regular))
                     .foregroundStyle(TradeTheme.muted)
             }
         }
@@ -229,7 +229,7 @@ struct TraderAvatar: View {
                 .frame(width: size * 0.58, height: size * 0.58)
                 .offset(x: size * 0.18, y: -size * 0.16)
             Text(profile.initials)
-                .font(.system(size: size * 0.34, weight: .black))
+                .font(.seek(size: size * 0.34, weight: .black))
                 .foregroundStyle(.white)
         }
         .frame(width: size, height: size)
@@ -247,10 +247,10 @@ struct TradeActionButton: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(.seek(size: 17, weight: .regular))
                 if let count, count > 0 {
                     Text("\(count)")
-                        .font(.system(size: 12, weight: .regular))
+                        .font(.seek(size: 12, weight: .regular))
                         .monospacedDigit()
                 }
             }
@@ -460,7 +460,7 @@ struct TradeComposerView: View {
                     .frame(width: 20, height: 20)
                     .overlay {
                         Image(systemName: "plus")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.seek(size: 10, weight: .semibold))
                             .foregroundStyle(TradeTheme.muted)
                     }
                     .padding(.leading, 24)
@@ -483,10 +483,10 @@ struct MetricPill: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(.seek(size: 10, weight: .bold))
                 .foregroundStyle(TradeTheme.muted)
             Text(value)
-                .font(.subheadline.monospacedDigit().weight(.bold))
+                .font(.seek(size: 15, weight: .bold).monospacedDigit())
                 .foregroundStyle(tint)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -547,7 +547,7 @@ struct TradeIdeaCard: View {
                     .frame(width: 19, height: 19)
                     .overlay {
                         Image(systemName: "plus")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.seek(size: 12, weight: .bold))
                             .foregroundStyle(TradeTheme.paper)
                     }
                     .overlay {
@@ -561,22 +561,22 @@ struct TradeIdeaCard: View {
     private var authorLine: some View {
         HStack(alignment: .center, spacing: 6) {
             Text(author.handle)
-                .font(.system(size: 14, weight: .bold))
+                .font(.seek(size: 14, weight: .bold))
                 .foregroundStyle(TradeTheme.ink)
                 .lineLimit(1)
             Text(post.postedAgo)
-                .font(.system(size: 13, weight: .regular))
+                .font(.seek(size: 13, weight: .regular))
                 .foregroundStyle(TradeTheme.muted)
             Spacer(minLength: 0)
             Image(systemName: "ellipsis")
-                .font(.system(size: 18))
+                .font(.seek(size: 18))
                 .foregroundStyle(TradeTheme.muted)
         }
     }
 
     private var postCopy: some View {
         Text(postNarrative)
-            .font(.system(size: 14, weight: .regular))
+            .font(.seek(size: 14, weight: .regular))
             .lineSpacing(3)
             .foregroundStyle(TradeTheme.ink)
             .fixedSize(horizontal: false, vertical: true)
@@ -585,13 +585,13 @@ struct TradeIdeaCard: View {
     private var tradeContextLine: some View {
         HStack(alignment: .center, spacing: 8) {
             Text(tradeStatusPhrase)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.seek(size: 12, weight: .semibold))
                 .foregroundStyle(TradeTheme.muted)
                 .lineLimit(1)
                 .minimumScaleFactor(0.76)
             if let stats {
                 Text("WR: \(winRateText(stats.winRate))")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.seek(size: 11, weight: .bold))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -669,35 +669,38 @@ struct TradeTicketView: View {
     @State private var pulseOpenDot = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(String(stock.symbol.prefix(1)))
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.seek(size: 13, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 24, height: 24)
                         .background(AvatarColor.color(for: stock.id))
                         .clipShape(RoundedRectangle(cornerRadius: 5))
 
                     Text(instrumentTitle)
-                        .font(.tradeDisplayName.weight(.semibold))
+                        .font(.seek(size: 14, weight: .semibold))
                         .foregroundStyle(TradeTheme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.58)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(2)
 
                     Text(productLabel)
                         .font(.tradeActionCount)
                         .foregroundStyle(TradeTheme.ink)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(TradeTheme.paper)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(TradeTheme.line, lineWidth: 1)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(TradeTheme.paper)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(TradeTheme.line, lineWidth: 1)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .layoutPriority(1)
                 }
-                Spacer(minLength: 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 6)
                 HStack(spacing: 5) {
                     if post.status == .active {
                         OpenTradePulseDot(isPulsing: pulseOpenDot)
@@ -706,21 +709,21 @@ struct TradeTicketView: View {
                         .font(.tradeHandle)
                         .foregroundStyle(TradeTheme.ink)
                 }
-                .padding(.top, 2)
+                .padding(.top, 1)
             }
 
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(pnlTitle)
                         .font(.tradeActionCount)
                         .foregroundStyle(TradeTheme.muted)
                     Text(returnText)
-                        .font(.system(size: 22, weight: .regular).monospacedDigit())
+                        .font(.seek(size: 22, weight: .regular).monospacedDigit())
                         .foregroundStyle(pnlColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.66)
                     Text(pnlValue)
-                        .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                        .font(.seek(size: 12, weight: .semibold).monospacedDigit())
                         .foregroundStyle(pnlColor)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -734,13 +737,13 @@ struct TradeTicketView: View {
                 .frame(width: 104, height: 58)
             }
 
-            VStack(spacing: 9) {
-                HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 8) {
+                HStack(alignment: .top, spacing: 10) {
                     receiptMetric(title: "Entry Price", value: entryText)
                     receiptMetric(title: post.status.isClosed ? "Avg. Close Price" : "Mark Price", value: post.status.isClosed ? exitText : markText)
                 }
 
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: 10) {
                     receiptMetric(title: post.status.isClosed ? "Close Time" : "Target", value: post.status.isClosed ? closeTimeText : targetText, tint: post.status.isClosed ? TradeTheme.muted : TradeTheme.gain)
                     receiptMetric(title: post.status.isClosed ? "Closed By" : "Stop", value: post.status.isClosed ? exitReason : stopText, tint: post.status.isClosed ? TradeTheme.muted : TradeTheme.loss)
                 }
@@ -748,7 +751,7 @@ struct TradeTicketView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(11)
         .background(TradeTheme.panel)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .onAppear {
@@ -937,10 +940,10 @@ struct TradeTicketView: View {
     private func receiptMetric(title: String, value: String, tint: Color = TradeTheme.ink) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(title)
-                .font(.system(size: 12, weight: .regular))
+                .font(.seek(size: 12, weight: .regular))
                 .foregroundStyle(TradeTheme.muted)
             Text(value)
-                .font(.system(size: 13, weight: .regular).monospacedDigit())
+                .font(.seek(size: 13, weight: .regular).monospacedDigit())
                 .foregroundStyle(tint)
                 .lineLimit(2)
                 .minimumScaleFactor(0.60)
@@ -1001,7 +1004,7 @@ struct TradeReceiptSparkline: View {
 
     private func tradeMarker(label: String, color: Color) -> some View {
         Text(label)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.seek(size: 11, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: 22, height: 22)
             .background(color)
@@ -1045,7 +1048,7 @@ struct DirectionBadge: View {
             Image(systemName: direction.symbolName)
             Text(status == .active ? direction.rawValue : status.rawValue)
         }
-        .font(.caption2.weight(.bold))
+        .font(.seek(size: 11, weight: .bold))
         .foregroundStyle(color)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
@@ -1060,9 +1063,9 @@ struct QuoteChip: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(stock.symbol)
-                .font(.caption.weight(.bold))
+                .font(.seek(size: 12, weight: .bold))
             Text(stock.changePercent.percentText)
-                .font(.caption2.monospacedDigit().weight(.bold))
+                .font(.seek(size: 11, weight: .bold).monospacedDigit())
                 .foregroundStyle(stock.changePercent >= 0 ? TradeTheme.gain : TradeTheme.loss)
         }
         .padding(.horizontal, 8)
@@ -1170,7 +1173,7 @@ struct SegmentedRangeControl: View {
         HStack(spacing: 0) {
             ForEach(ranges, id: \.self) { range in
                 Text(range)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.seek(size: 15, weight: .semibold))
                     .foregroundStyle(TradeTheme.ink)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 9)
@@ -1200,5 +1203,9 @@ extension Double {
 
     var cleanPrice: String {
         String(format: "%.2f", self)
+    }
+
+    var currencyText: String {
+        "\(self < 0 ? "-" : "")$\(String(format: "%.2f", abs(self)))"
     }
 }

@@ -42,10 +42,10 @@ struct WatchlistView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Your Tape")
-                .font(.largeTitle.weight(.bold))
+                .font(.seek(size: 34, weight: .bold))
                 .foregroundStyle(TradeTheme.ink)
             Text("Manual portfolio and watchlist names, paired with community ideas.")
-                .font(.subheadline)
+                .font(.seek(size: 15, weight: .regular))
                 .foregroundStyle(TradeTheme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -94,28 +94,28 @@ struct WatchlistRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
                     Text(stock.symbol)
-                        .font(.headline.weight(.bold))
+                        .font(.seek(size: 17, weight: .bold))
                         .foregroundStyle(TradeTheme.ink)
                     Text(stock.exchange)
-                        .font(.caption.weight(.bold))
+                        .font(.seek(size: 12, weight: .bold))
                         .foregroundStyle(TradeTheme.muted)
                 }
                 Text(stock.name)
-                    .font(.subheadline)
+                    .font(.seek(size: 15, weight: .regular))
                     .foregroundStyle(TradeTheme.ink)
                 Text(item.note)
-                    .font(.caption)
+                    .font(.seek(size: 12, weight: .regular))
                     .foregroundStyle(TradeTheme.muted)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 5) {
                 Text("\(stock.region == .india ? "Rs " : "$")\(stock.price.cleanPrice)")
-                    .font(.subheadline.monospacedDigit().weight(.bold))
+                    .font(.seek(size: 15, weight: .bold).monospacedDigit())
                 Text(stock.changePercent.percentText)
-                    .font(.caption.monospacedDigit().weight(.bold))
+                    .font(.seek(size: 12, weight: .bold).monospacedDigit())
                     .foregroundStyle(stock.changePercent >= 0 ? TradeTheme.gain : TradeTheme.loss)
                 Text("\(ideaCount) ideas")
-                    .font(.caption2.weight(.semibold))
+                    .font(.seek(size: 11, weight: .semibold))
                     .foregroundStyle(TradeTheme.muted)
             }
         }

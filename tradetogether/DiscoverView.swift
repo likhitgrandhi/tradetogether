@@ -70,19 +70,19 @@ struct DiscoverView: View {
             TraderAvatar(profile: profile)
             VStack(alignment: .leading, spacing: 4) {
                 Text(profile.name)
-                    .font(.headline.weight(.semibold))
+                    .font(.seek(size: 17, weight: .semibold))
                     .foregroundStyle(TradeTheme.ink)
                 Text("\(profile.handle) - \(profile.role)")
-                    .font(.caption)
+                    .font(.seek(size: 12, weight: .regular))
                     .foregroundStyle(TradeTheme.muted)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Text("\(stats.winRate)%")
-                    .font(.subheadline.monospacedDigit().weight(.bold))
+                    .font(.seek(size: 15, weight: .bold).monospacedDigit())
                     .foregroundStyle(TradeTheme.gain)
                 Text("win rate")
-                    .font(.caption2.weight(.semibold))
+                    .font(.seek(size: 11, weight: .semibold))
                     .foregroundStyle(TradeTheme.muted)
             }
         }

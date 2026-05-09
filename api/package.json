@@ -1,0 +1,32 @@
+{
+  "name": "@growhouse/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@supabase/supabase-js": "^2.49.4",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.1",
+    "snaptrade-typescript-sdk": "^9.0.195",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  },
+  "overrides": {
+    "axios": "^1.16.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

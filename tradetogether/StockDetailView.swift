@@ -32,17 +32,17 @@ struct StockDetailView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(stock.name)
-                    .font(.system(size: 31, weight: .semibold))
+                    .font(.seek(size: 31, weight: .semibold))
                     .foregroundStyle(TradeTheme.ink)
                     .lineLimit(2)
                     .minimumScaleFactor(0.82)
                 Text(stock.symbol)
-                    .font(.title3)
+                    .font(.seek(size: 20, weight: .regular))
                     .foregroundStyle(TradeTheme.muted)
             }
             Spacer()
             Text(stock.exchange)
-                .font(.caption.weight(.semibold))
+                .font(.seek(size: 12, weight: .semibold))
                 .foregroundStyle(TradeTheme.muted)
                 .padding(.top, 6)
         }
@@ -54,16 +54,16 @@ struct StockDetailView: View {
     private var quoteBlock: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("AT CLOSE 4:00 PM")
-                .font(.caption.weight(.semibold))
+                .font(.seek(size: 12, weight: .semibold))
                 .foregroundStyle(TradeTheme.muted)
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(price(stock.price))
-                    .font(.system(size: 58, weight: .light))
+                    .font(.seek(size: 58, weight: .light))
                     .foregroundStyle(TradeTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.62)
                 Text(stock.region == .india ? "INR" : "USD")
-                    .font(.headline.weight(.semibold))
+                    .font(.seek(size: 17, weight: .semibold))
                     .foregroundStyle(TradeTheme.muted)
                 Spacer(minLength: 4)
             }
@@ -71,10 +71,10 @@ struct StockDetailView: View {
             HStack(spacing: 10) {
                 Text(stock.changePercent.percentText)
                 Image(systemName: "triangle.fill")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.seek(size: 13, weight: .bold))
                     .rotationEffect(stock.changePercent >= 0 ? .zero : .degrees(180))
             }
-            .font(.title3.monospacedDigit().weight(.semibold))
+            .font(.seek(size: 20, weight: .semibold).monospacedDigit())
             .foregroundStyle(stock.changePercent >= 0 ? TradeTheme.gain : TradeTheme.loss)
         }
         .padding(.horizontal, 20)
@@ -89,11 +89,11 @@ struct StockDetailView: View {
             QuoteDataRow(title: "Related Ideas", value: "\(store.posts(for: stock).count)")
             HStack {
                 Text("Key Quote Data")
-                    .font(.title3)
+                    .font(.seek(size: 20, weight: .regular))
                     .foregroundStyle(TradeTheme.muted)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.title2.weight(.semibold))
+                    .font(.seek(size: 22, weight: .semibold))
                     .foregroundStyle(TradeTheme.muted)
             }
             .padding(.horizontal, 20)
@@ -140,7 +140,7 @@ struct StockDetailView: View {
                 Spacer()
                 Text(price((stock.priceHistory.min() ?? stock.price) * 0.99))
             }
-            .font(.caption.monospacedDigit())
+            .font(.seek(size: 12, weight: .regular).monospacedDigit())
             .foregroundStyle(TradeTheme.muted)
             .frame(width: 58)
         }
@@ -162,9 +162,9 @@ struct StockDetailView: View {
     private var watchlistAction: some View {
         HStack(spacing: 16) {
             Image(systemName: "plus.circle")
-                .font(.system(size: 34, weight: .light))
+                .font(.seek(size: 34, weight: .light))
             Text("Watchlist")
-                .font(.title2.weight(.semibold))
+                .font(.seek(size: 22, weight: .semibold))
             Spacer()
         }
         .foregroundStyle(TradeTheme.ink)
@@ -177,10 +177,10 @@ struct StockDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             SectionHeader(title: "AI Risk View", subtitle: "Educational thesis check, not a trade signal")
             Text(stock.aiOverview.stance)
-                .font(.title3.weight(.semibold))
+                .font(.seek(size: 20, weight: .semibold))
                 .foregroundStyle(TradeTheme.ink)
             Text(stock.aiOverview.summary)
-                .font(.subheadline)
+                .font(.seek(size: 15, weight: .regular))
                 .foregroundStyle(TradeTheme.muted)
             HStack(spacing: 8) {
                 MetricPill(title: "Alignment", value: "\(stock.aiOverview.thesisAlignment)%", tint: TradeTheme.gold)
@@ -233,11 +233,11 @@ struct QuoteDataRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .font(.title3)
+                .font(.seek(size: 20, weight: .regular))
                 .foregroundStyle(TradeTheme.muted)
             Spacer(minLength: 16)
             Text(value)
-                .font(.title3.monospacedDigit())
+                .font(.seek(size: 20, weight: .regular).monospacedDigit())
                 .foregroundStyle(TradeTheme.ink)
                 .multilineTextAlignment(.trailing)
                 .lineLimit(2)

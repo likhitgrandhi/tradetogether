@@ -40,7 +40,7 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                WatchlistView(store: store)
+                TradesHubView(store: store)
             }
             .tabItem {
                 Image(systemName: "arrow.2.squarepath")

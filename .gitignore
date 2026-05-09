@@ -1,0 +1,6 @@
+api/dist/
+api/node_modules/
+api/.env
+
+.DS_Store
+DerivedData/
