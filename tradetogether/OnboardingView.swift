@@ -27,7 +27,6 @@ struct OnboardingView: View {
     @State private var isCreatingAccount = false
     @State private var isLoading = false
     @State private var statusText: String?
-    @State private var showConfiguration = false
     @State private var accounts: [SeekBrokerageAccount] = []
     @State private var syncedTrades: [SeekTradeCandidate] = []
     @Environment(\.openURL) private var openURL
@@ -64,6 +63,9 @@ struct OnboardingView: View {
             Task {
                 await syncAfterPortalReturn()
             }
+        }
+        .task {
+            await primeMobileConfiguration()
         }
         .preferredColorScheme(.light)
     }
@@ -104,20 +106,8 @@ struct OnboardingView: View {
 
             Spacer()
 
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showConfiguration.toggle()
-                }
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 20, weight: .regular))
-                    .foregroundStyle(Color.black)
-                    .frame(width: 56, height: 56)
-                    .background(Color.white)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.06), radius: 18, x: 0, y: 10)
-            }
-            .buttonStyle(.plain)
+            Color.clear
+                .frame(width: 56, height: 56)
         }
         .padding(.horizontal, 24)
         .padding(.top, 6)
@@ -137,12 +127,8 @@ struct OnboardingView: View {
                 brokerageStep
             }
 
-            if showConfiguration || !settings.hasAuthConfiguration {
-                configurationPanel
-            }
         }
         .animation(.easeInOut(duration: 0.22), value: step)
-        .animation(.easeInOut(duration: 0.22), value: showConfiguration)
     }
 
     private var authIntro: some View {
@@ -204,7 +190,7 @@ struct OnboardingView: View {
                         await authenticate()
                     }
                 }
-                .disabled(password.count < 6 || isLoading || !settings.hasAuthConfiguration)
+                .disabled(password.count < 6 || isLoading)
 
                 Button {
                     step = .email
@@ -284,33 +270,6 @@ struct OnboardingView: View {
         }
     }
 
-    private var configurationPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Connection settings")
-                .font(.seek(size: 13, weight: .bold))
-                .foregroundStyle(Color.black.opacity(0.70))
-
-            onboardingTextField("API base URL", text: $settings.apiBaseURL, keyboard: .URL)
-            onboardingTextField("Supabase project URL", text: $settings.supabaseURL, keyboard: .URL)
-            SecureField("Supabase anon key", text: $settings.supabaseAnonKey)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .font(.seek(size: 14, weight: .regular))
-                .foregroundStyle(Color.black)
-                .padding(.horizontal, 14)
-                .frame(height: 46)
-                .background(Color.white.opacity(0.82))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.black.opacity(0.11), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .padding(14)
-        .background(Color.white.opacity(0.68))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
     private var bottomStatus: some View {
         VStack(spacing: 10) {
             if isLoading {
@@ -384,10 +343,12 @@ struct OnboardingView: View {
 
     private func authenticate() async {
         isLoading = true
-        statusText = isCreatingAccount ? "Creating your GrowHouse account" : "Signing in"
+        statusText = "Preparing secure sign in"
         defer { isLoading = false }
 
         do {
+            try await loadMobileConfigIfNeeded()
+            statusText = isCreatingAccount ? "Creating your GrowHouse account" : "Signing in"
             let auth = SeekSupabaseAuthClient(settings: settings)
             let session = isCreatingAccount
                 ? try await auth.signUp(email: email, password: password)
@@ -399,6 +360,26 @@ struct OnboardingView: View {
             step = .connectBrokerage
         } catch {
             statusText = error.localizedDescription
+        }
+    }
+
+    private func loadMobileConfigIfNeeded() async throws {
+        if settings.hasAuthConfiguration { return }
+        let config = try await api.mobileConfig()
+        settings.apply(mobileConfig: config)
+        guard config.authConfigured else {
+            throw SeekAPIError.missingSupabaseAnonKey
+        }
+    }
+
+    private func primeMobileConfiguration() async {
+        guard !settings.hasAuthConfiguration else { return }
+        do {
+            let config = try await api.mobileConfig()
+            settings.apply(mobileConfig: config)
+            statusText = config.authConfigured ? nil : "GrowHouse sign in is not configured yet."
+        } catch {
+            statusText = "Could not reach GrowHouse services. Check your connection and try again."
         }
     }
 

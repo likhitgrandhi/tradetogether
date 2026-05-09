@@ -62,7 +62,7 @@ export async function createServer(deps: AppDeps = {}): Promise<FastifyInstance>
     request.authUser = user;
   });
 
-  registerHealthRoutes(app, { snaptrade });
+  registerHealthRoutes(app, { config, snaptrade });
   registerMarketRoutes(app, { marketData });
   registerSnapTradeRoutes(app, { snaptradeUsers });
   registerBrokerageRoutes(app, { brokerageData });

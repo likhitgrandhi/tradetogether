@@ -5,7 +5,7 @@ Fastify backend for real brokerage data, SnapTrade account linking, and verified
 ## Local Setup
 
 1. Copy `.env.example` to `.env`.
-2. Fill Supabase service-role and SnapTrade credentials.
+2. Fill Supabase anon, Supabase service-role, and SnapTrade credentials.
 3. Generate `SNAPTRADE_USER_SECRET_ENCRYPTION_KEY`:
 
 ```sh
@@ -61,14 +61,13 @@ Apply `../supabase/migrations/202605090001_initial_real_data.sql` to a Supabase 
 
 ## iOS Wiring
 
-The profile screen now includes a Brokerage Sync panel. For local testing, paste:
+The iOS app reads public mobile configuration from:
 
-- API base URL, for example `http://localhost:4000`
-- Supabase project URL
-- Supabase anon key
-- Test user email and password
+- `GET /config/mobile`
 
-Then use `Sign In`, `Health`, `Connect`, and `Sync` in order. `Connect` opens the SnapTrade Connection Portal, and `Sync` pulls connected accounts and verified trade candidates.
+Users should only see the onboarding screens for email/password sign in and SnapTrade connection. They should never need to paste API URLs or Supabase keys into the app.
+
+`SUPABASE_ANON_KEY` is intentionally returned by `/config/mobile` because it is the public browser/mobile key Supabase clients use for user auth. Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only.
 
 ## Checks
 

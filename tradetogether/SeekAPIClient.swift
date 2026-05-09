@@ -49,6 +49,14 @@ struct SeekPortalLink: Decodable {
     let snapTradeUserId: String
 }
 
+struct GrowHouseMobileConfig: Decodable {
+    let apiBaseURL: String
+    let supabaseURL: String
+    let supabaseAnonKey: String
+    let iosDeepLinkScheme: String
+    let authConfigured: Bool
+}
+
 struct SeekBrokerageConnection: Decodable, Identifiable {
     let id: String
     let brokerageName: String?
@@ -168,6 +176,14 @@ final class SeekAPISettings: ObservableObject {
         brokerageConnected = false
     }
 
+    func apply(mobileConfig: GrowHouseMobileConfig) {
+        if !mobileConfig.apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            apiBaseURL = mobileConfig.apiBaseURL
+        }
+        supabaseURL = mobileConfig.supabaseURL
+        supabaseAnonKey = mobileConfig.supabaseAnonKey
+    }
+
     private enum Keys {
         static let apiBaseURL = "seek.apiBaseURL"
         static let accessToken = "seek.accessToken"
@@ -227,6 +243,10 @@ struct SeekAPIClient {
 
     func health() async throws -> SeekAPIHealth {
         try await send(path: "/health", method: "GET", authenticated: false)
+    }
+
+    func mobileConfig() async throws -> GrowHouseMobileConfig {
+        try await send(path: "/config/mobile", method: "GET", authenticated: false)
     }
 
     func registerSnapTradeUser() async throws {
@@ -335,7 +355,7 @@ enum SeekAPIError: LocalizedError {
         case .missingAccessToken:
             "Paste a Supabase access token before calling protected endpoints."
         case .missingSupabaseAnonKey:
-            "Paste your Supabase anon key before signing in."
+            "GrowHouse sign in is not configured yet. Add SUPABASE_ANON_KEY to the backend environment."
         case .missingAuthSession:
             "Supabase did not return a session. Check whether email confirmation is required."
         case let .httpStatus(status, body):

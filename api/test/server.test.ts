@@ -9,6 +9,7 @@ const testConfig: AppConfig = {
   API_BASE_URL: "http://localhost:4000",
   IOS_DEEP_LINK_SCHEME: "seek",
   SUPABASE_URL: "https://example.supabase.co",
+  SUPABASE_ANON_KEY: "anon-key",
   SUPABASE_SERVICE_ROLE_KEY: "service-role",
   SNAPTRADE_CLIENT_ID: "client-id",
   SNAPTRADE_CONSUMER_KEY: "consumer-key",
@@ -70,6 +71,30 @@ describe("api server", () => {
     expect(response.json()).toEqual({
       api: { online: true },
       snaptrade: { online: true, version: 153 }
+    });
+  });
+
+  it("returns public mobile app configuration", async () => {
+    const app = await createServer({
+      config: testConfig,
+      db: new MemorySnapTradeUsersTable() as never,
+      snaptrade: {
+        checkStatus: vi.fn(),
+        registerUser: vi.fn(),
+        createPortalLink: vi.fn()
+      },
+      authenticate: async () => ({ id: "user-1", email: "u@example.com" })
+    });
+
+    const response = await app.inject({ method: "GET", url: "/config/mobile" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      apiBaseURL: "http://localhost:4000",
+      supabaseURL: "https://example.supabase.co",
+      supabaseAnonKey: "anon-key",
+      iosDeepLinkScheme: "seek",
+      authConfigured: true
     });
   });
 
