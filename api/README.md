@@ -41,6 +41,7 @@ Apply `../supabase/migrations/202605090001_initial_real_data.sql` to a Supabase 
   - Requires `Authorization: Bearer <supabase_access_token>`.
   - Creates a short-lived read-only SnapTrade Connection Portal URL.
   - Uses `growhouse://snaptrade/callback` as the native iOS redirect in deployed environments.
+  - Opens the SnapTrade Connection Portal first, then redirects back to iOS after the user completes the connection.
 - `POST /brokerage/connections/sync`
   - Pulls SnapTrade connections and accounts into local tables.
 - `GET /brokerage/connections`

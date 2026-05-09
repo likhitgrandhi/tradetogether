@@ -69,7 +69,7 @@ export class SnapTradeSdkGateway implements SnapTradeGateway {
     const response = await this.client.authentication.loginSnapTradeUser({
       userId: input.userId,
       userSecret: input.userSecret,
-      immediateRedirect: true,
+      immediateRedirect: false,
       customRedirect: input.customRedirect,
       connectionType: "read",
       showCloseButton: false,
