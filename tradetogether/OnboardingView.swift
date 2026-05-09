@@ -368,7 +368,7 @@ struct OnboardingView: View {
     }
 
     private func loadMobileConfigIfNeeded() async throws {
-        if settings.hasAuthConfiguration { return }
+        settings.resetAPIBaseURLToHostedDefault()
         let config = try await api.mobileConfig()
         settings.apply(mobileConfig: config)
         guard config.authConfigured else {
@@ -377,7 +377,7 @@ struct OnboardingView: View {
     }
 
     private func primeMobileConfiguration() async {
-        guard !settings.hasAuthConfiguration else { return }
+        settings.resetAPIBaseURLToHostedDefault()
         do {
             let config = try await api.mobileConfig()
             settings.apply(mobileConfig: config)

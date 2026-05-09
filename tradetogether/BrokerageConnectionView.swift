@@ -175,6 +175,7 @@ struct BrokerageConnectionView: View {
     }
 
     private func connectBroker() async throws {
+        settings.resetAPIBaseURLToHostedDefault()
         try await api.registerSnapTradeUser()
         let portal = try await api.createPortalLink()
         guard let url = URL(string: portal.redirectURI) else {
@@ -185,6 +186,7 @@ struct BrokerageConnectionView: View {
     }
 
     private func syncAccounts() async throws {
+        settings.resetAPIBaseURLToHostedDefault()
         let result = try await api.syncAllAccounts()
         accounts = result.1
         candidates = result.2

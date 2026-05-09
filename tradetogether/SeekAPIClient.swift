@@ -18,11 +18,26 @@ private enum GrowHouseAPIConstants {
         guard !trimmed.isEmpty else { return defaultBaseURL }
 
         let lowercase = trimmed.lowercased()
-        if lowercase.contains("localhost") || lowercase.contains("127.0.0.1") || lowercase.contains("0.0.0.0") {
+        if lowercase.contains("growhouse-api.onrender.com") {
+            return normalizedURLString(trimmed)
+        }
+
+        if lowercase.contains("localhost") ||
+            lowercase.contains("127.0.0.1") ||
+            lowercase.contains("0.0.0.0") ||
+            lowercase.contains("ngrok") ||
+            lowercase.contains("trycloudflare") ||
+            lowercase.contains("loca.lt") ||
+            lowercase.contains("localhost.run") {
             return defaultBaseURL
         }
 
-        return trimmed
+        return defaultBaseURL
+    }
+
+    static func normalizedURLString(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.hasSuffix("/") ? trimmed : "\(trimmed)/"
     }
 }
 
@@ -178,10 +193,14 @@ final class SeekAPISettings: ObservableObject {
 
     func apply(mobileConfig: GrowHouseMobileConfig) {
         if !mobileConfig.apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            apiBaseURL = mobileConfig.apiBaseURL
+            apiBaseURL = GrowHouseAPIConstants.normalizedURLString(mobileConfig.apiBaseURL)
         }
         supabaseURL = mobileConfig.supabaseURL
         supabaseAnonKey = mobileConfig.supabaseAnonKey
+    }
+
+    func resetAPIBaseURLToHostedDefault() {
+        apiBaseURL = GrowHouseAPIConstants.defaultBaseURL
     }
 
     private enum Keys {
