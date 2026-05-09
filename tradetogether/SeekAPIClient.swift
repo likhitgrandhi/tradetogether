@@ -8,6 +8,10 @@
 import Combine
 import Foundation
 
+private enum GrowHouseAPIConstants {
+    static let defaultBaseURL = "https://growhouse-api.onrender.com/"
+}
+
 struct SeekAPIHealth: Decodable {
     struct Status: Decodable {
         let online: Bool
@@ -116,7 +120,7 @@ final class SeekAPISettings: ObservableObject {
     }
 
     private init() {
-        apiBaseURL = UserDefaults.standard.string(forKey: Keys.apiBaseURL) ?? "http://localhost:4000"
+        apiBaseURL = UserDefaults.standard.string(forKey: Keys.apiBaseURL) ?? GrowHouseAPIConstants.defaultBaseURL
         accessToken = UserDefaults.standard.string(forKey: Keys.accessToken) ?? ""
         supabaseURL = UserDefaults.standard.string(forKey: Keys.supabaseURL) ?? ""
         supabaseAnonKey = UserDefaults.standard.string(forKey: Keys.supabaseAnonKey) ?? ""
@@ -231,7 +235,7 @@ struct SeekAPIClient {
 
     private var normalizedBaseURL: URL {
         let text = settings.apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        return URL(string: text.hasSuffix("/") ? text : "\(text)/") ?? URL(string: "http://localhost:4000/")!
+        return URL(string: text.hasSuffix("/") ? text : "\(text)/") ?? URL(string: GrowHouseAPIConstants.defaultBaseURL)!
     }
 }
 
