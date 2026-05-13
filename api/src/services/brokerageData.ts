@@ -169,13 +169,25 @@ export class BrokerageDataService {
       return { createdOrUpdated: 0 };
     }
 
+    const syncedAt = new Date().toISOString();
+    const candidatesToUpsert: JsonRecord[] = candidates.map((candidate): JsonRecord => ({
+      ...candidate,
+      updated_at: syncedAt
+    }));
+
     const { error } = await this.db
       .from("verified_trade_candidates")
-      .upsert(candidates, { onConflict: "provider,provider_source_type,provider_source_id" });
+      .upsert(candidatesToUpsert, { onConflict: "provider,provider_source_type,provider_source_id" });
 
     if (error) {
       throw new Error(`Failed to sync trade candidates: ${error.message}`);
     }
+
+    await this.removeDuplicateOpenCandidates(
+      user.id,
+      account.id,
+      new Set(candidatesToUpsert.map((candidate) => firstString(candidate.provider_source_id)).filter((id): id is string => Boolean(id)))
+    );
 
     return { createdOrUpdated: candidates.length };
   }
@@ -183,15 +195,15 @@ export class BrokerageDataService {
   async listTradeCandidates(user: AuthenticatedUser): Promise<JsonRecord[]> {
     const { data, error } = await this.db
       .from("verified_trade_candidates")
-      .select("id, side, status, quantity, entry_price, exit_price, mark_price, realized_pnl, unrealized_pnl, return_percent, provider_source_type, created_at, raw, instruments(symbol, name)")
+      .select("id, side, status, quantity, entry_price, exit_price, mark_price, realized_pnl, unrealized_pnl, return_percent, provider_source_type, created_at, updated_at, raw, instruments(symbol, name)")
       .eq("seek_user_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (error) {
       throw new Error(`Failed to load trade candidates: ${error.message}`);
     }
 
-    return ((data ?? []) as JsonRecord[]).map((candidate) => {
+    return deduplicateTradeCandidateRows((data ?? []) as JsonRecord[]).map((candidate) => {
       const instrument = asRecord(candidate.instruments);
       const raw = asRecord(candidate.raw);
       return {
@@ -311,7 +323,7 @@ export class BrokerageDataService {
     account: BrokerageAccountRecord,
     raw: JsonRecord
   ): Promise<JsonRecord> {
-    const symbol = symbolFrom(raw) ?? "UNKNOWN";
+    const symbol = canonicalSymbol(symbolFrom(raw)) ?? "UNKNOWN";
     const instrumentId = await this.upsertInstrument(raw, "position");
     const quantity = numberFrom(raw.units, raw.quantity, raw.shares);
     const entryPrice = numberFrom(raw.average_purchase_price, raw.averagePrice, raw.cost_basis);
@@ -341,7 +353,7 @@ export class BrokerageDataService {
     account: BrokerageAccountRecord,
     raw: JsonRecord
   ): Promise<JsonRecord> {
-    const symbol = symbolFrom(raw) ?? "OPTION";
+    const symbol = canonicalSymbol(symbolFrom(raw)) ?? "OPTION";
     const instrumentId = await this.upsertInstrument(raw, "option_position");
     const quantity = numberFrom(raw.units, raw.quantity, raw.contracts);
     const entryPrice = numberFrom(raw.average_purchase_price, raw.averagePrice, raw.cost_basis);
@@ -364,6 +376,75 @@ export class BrokerageDataService {
       return_percent: percentReturn(entryPrice, markPrice),
       raw
     };
+  }
+
+  private async removeDuplicateOpenCandidates(
+    seekUserId: string,
+    brokerageAccountId: string,
+    syncedSourceIds: Set<string>
+  ): Promise<void> {
+    const { data, error } = await this.db
+      .from("verified_trade_candidates")
+      .select("id, provider_source_type, provider_source_id, status, created_at, updated_at, instruments(symbol)")
+      .eq("seek_user_id", seekUserId)
+      .eq("brokerage_account_id", brokerageAccountId)
+      .eq("status", "open")
+      .in("provider_source_type", ["position", "option_position"]);
+
+    if (error) {
+      throw new Error(`Failed to inspect duplicate trade candidates: ${error.message}`);
+    }
+
+    const grouped = new Map<string, JsonRecord[]>();
+
+    for (const candidate of (data ?? []) as JsonRecord[]) {
+      const instrument = asRecord(candidate.instruments);
+      const sourceType = firstString(candidate.provider_source_type) ?? "position";
+      const symbol = canonicalSymbol(firstString(instrument.symbol, symbolFromSourceId(candidate.provider_source_id)));
+      if (!symbol) {
+        continue;
+      }
+
+      const key = `${sourceType}:${symbol}`;
+      grouped.set(key, [...(grouped.get(key) ?? []), candidate]);
+    }
+
+    const duplicateIds = [...grouped.values()].flatMap((group) => {
+      if (group.length < 2) {
+        return [];
+      }
+
+      const sorted = [...group].sort((left, right) => {
+        const leftWasSynced = syncedSourceIds.has(firstString(left.provider_source_id) ?? "") ? 1 : 0;
+        const rightWasSynced = syncedSourceIds.has(firstString(right.provider_source_id) ?? "") ? 1 : 0;
+        if (leftWasSynced !== rightWasSynced) {
+          return rightWasSynced - leftWasSynced;
+        }
+
+        const leftTime = Date.parse(firstString(left.updated_at, left.created_at) ?? "") || 0;
+        const rightTime = Date.parse(firstString(right.updated_at, right.created_at) ?? "") || 0;
+        return rightTime - leftTime;
+      });
+
+      return sorted
+        .slice(1)
+        .map((candidate) => firstString(candidate.id))
+        .filter((id): id is string => Boolean(id));
+    });
+
+    if (duplicateIds.length === 0) {
+      return;
+    }
+
+    const { error: deleteError } = await this.db
+      .from("verified_trade_candidates")
+      .delete()
+      .eq("seek_user_id", seekUserId)
+      .in("id", duplicateIds);
+
+    if (deleteError) {
+      throw new Error(`Failed to remove duplicate trade candidates: ${deleteError.message}`);
+    }
   }
 
   private async activityToClosedCandidate(
@@ -485,6 +566,53 @@ function symbolFrom(raw: JsonRecord): string | null {
     instrument.symbol,
     instrument.raw_symbol
   );
+}
+
+function deduplicateTradeCandidateRows(candidates: JsonRecord[]): JsonRecord[] {
+  const seenOpenPositions = new Set<string>();
+  const uniqueCandidates: JsonRecord[] = [];
+
+  for (const candidate of candidates) {
+    const sourceType = firstString(candidate.provider_source_type);
+    const status = firstString(candidate.status)?.toLowerCase();
+    const instrument = asRecord(candidate.instruments);
+    const raw = asRecord(candidate.raw);
+    const symbol = canonicalSymbol(firstString(instrument.symbol, symbolFrom(raw), symbolFromSourceId(candidate.provider_source_id)));
+
+    if (
+      status !== "open" ||
+      !sourceType ||
+      !["position", "option_position"].includes(sourceType) ||
+      !symbol
+    ) {
+      uniqueCandidates.push(candidate);
+      continue;
+    }
+
+    const key = `${sourceType}:${symbol}`;
+    if (!seenOpenPositions.has(key)) {
+      seenOpenPositions.add(key);
+      uniqueCandidates.push(candidate);
+    }
+  }
+
+  return uniqueCandidates;
+}
+
+function canonicalSymbol(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, "");
+  return normalized.length > 0 ? normalized : null;
+}
+
+function symbolFromSourceId(value: unknown): string | null {
+  const sourceId = firstString(value);
+  if (!sourceId) {
+    return null;
+  }
+  return sourceId.split(":").at(-1) ?? null;
 }
 
 function instrumentFrom(
