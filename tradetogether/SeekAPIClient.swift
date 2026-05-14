@@ -618,7 +618,7 @@ enum SeekAPIError: LocalizedError {
         case .invalidResponse:
             "The server response was not readable."
         case .missingAccessToken:
-            "Paste a Supabase access token before calling protected endpoints."
+            "Sign in again to continue."
         case .missingSupabaseAnonKey:
             "GrowHouse sign in is not configured yet. Add SUPABASE_ANON_KEY to the backend environment."
         case .missingAuthSession:

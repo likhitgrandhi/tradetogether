@@ -340,11 +340,18 @@ struct TradeComposerView: View {
                         activeTradePicker
                     }
                     composerBody
-                    if let errorText = postStore.errorText {
-                        Text(errorText)
-                            .font(.seek(size: 12, weight: .regular))
-                            .foregroundStyle(TradeTheme.loss)
-                            .fixedSize(horizontal: false, vertical: true)
+                    if let postingErrorText = postStore.postingErrorText {
+                        composerMessage(
+                            icon: "exclamationmark.circle",
+                            text: postingErrorText,
+                            tint: TradeTheme.loss
+                        )
+                    } else if let helperText {
+                        composerMessage(
+                            icon: "info.circle",
+                            text: helperText,
+                            tint: TradeTheme.muted
+                        )
                     }
                 }
                 .padding(.horizontal, 18)
@@ -359,6 +366,29 @@ struct TradeComposerView: View {
             await tradeStore.load()
             selectedTradeId = selectedTradeId ?? openTrades.first?.id
         }
+        .onChange(of: mode) { _, _ in
+            postStore.clearPostingError()
+        }
+        .onChange(of: bodyText) { _, _ in
+            postStore.clearPostingError()
+        }
+        .onChange(of: selectedTradeId) { _, _ in
+            postStore.clearPostingError()
+        }
+    }
+
+    private var helperText: String? {
+        let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if mode == .activeTrade && openTrades.isEmpty && !tradeStore.isLoading {
+            return "Sync a brokerage account to post an active trade."
+        }
+        if mode == .activeTrade && selectedTradeId == nil {
+            return "Choose an open verified trade before posting."
+        }
+        if trimmedBody.isEmpty {
+            return mode == .general ? "Write a short public post." : "Add commentary for this verified trade."
+        }
+        return nil
     }
 
     private var composerHeader: some View {
@@ -464,14 +494,32 @@ struct TradeComposerView: View {
                 .background(TradeTheme.panel)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             } else if openTrades.isEmpty {
-                Text("No open verified trades found. Sync a brokerage account first.")
-                    .font(.seek(size: 13, weight: .regular))
-                    .foregroundStyle(TradeTheme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(TradeTheme.panel)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("No open verified trades")
+                        .font(.seek(size: 13, weight: .bold))
+                        .foregroundStyle(TradeTheme.ink)
+                    Text("Sync a brokerage account, then choose an active position to post.")
+                        .font(.seek(size: 12, weight: .regular))
+                        .foregroundStyle(TradeTheme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        Task { _ = await tradeStore.syncAllAccounts() }
+                    } label: {
+                        Text(tradeStore.isLoading ? "Syncing" : "Sync trades")
+                            .font(.seek(size: 12, weight: .bold))
+                            .foregroundStyle(TradeTheme.paper)
+                            .padding(.horizontal, 12)
+                            .frame(height: 32)
+                            .background(TradeTheme.ink)
+                            .clipShape(Capsule())
+                    }
+                    .disabled(tradeStore.isLoading)
+                    .buttonStyle(.plain)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(TradeTheme.panel)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {
                 VStack(spacing: 0) {
                     ForEach(openTrades) { trade in
@@ -491,6 +539,23 @@ struct TradeComposerView: View {
                 )
             }
         }
+    }
+
+    private func composerMessage(icon: String, text: String, tint: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.seek(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .padding(.top, 1)
+            Text(text)
+                .font(.seek(size: 12, weight: .regular))
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(TradeTheme.panel)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private var composerBody: some View {
