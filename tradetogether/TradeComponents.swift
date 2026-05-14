@@ -293,8 +293,10 @@ enum AvatarColor {
     ]
 
     static func color(for key: String) -> Color {
-        let value = abs(key.unicodeScalars.reduce(0) { ($0 * 31) + Int($1.value) })
-        return palette[value % palette.count]
+        let value = key.unicodeScalars.reduce(UInt64(0)) { partial, scalar in
+            partial &* 31 &+ UInt64(scalar.value)
+        }
+        return palette[Int(value % UInt64(palette.count))]
     }
 }
 
