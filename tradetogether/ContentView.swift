@@ -11,6 +11,8 @@ import UIKit
 struct ContentView: View {
     private let store = DemoStore.shared
     @StateObject private var settings = SeekAPISettings.shared
+    @StateObject private var tradeStore = TradeStore()
+    @StateObject private var postStore = PostStore()
     @State private var showSplash = true
 
     init() {
@@ -91,6 +93,14 @@ struct ContentView: View {
         .toolbarBackground(TradeTheme.paper, for: .tabBar)
         .toolbarColorScheme(.dark, for: .tabBar)
         .preferredColorScheme(.dark)
+        .environmentObject(tradeStore)
+        .environmentObject(postStore)
+        .task {
+            guard settings.isAuthenticated, settings.onboardingCompleted else { return }
+            _ = await tradeStore.syncAllAccounts()
+            await postStore.loadFeed()
+            await postStore.loadMyPosts()
+        }
     }
 }
 

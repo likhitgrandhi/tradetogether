@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     @StateObject private var settings = SeekAPISettings.shared
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var tradeStore: TradeStore
 
     var body: some View {
         ScrollView {
@@ -39,6 +40,7 @@ struct SettingsView: View {
                 SettingsSection(title: "Account", subtitle: settings.authEmail.isEmpty ? "Signed in" : settings.authEmail) {
                     Button {
                         settings.signOut()
+                        tradeStore.clear()
                         dismiss()
                     } label: {
                         HStack(spacing: 12) {

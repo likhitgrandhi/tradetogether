@@ -14,83 +14,25 @@ struct BrokerageConnectionView: View {
     @State private var isLoading = false
     @State private var connections: [SeekBrokerageConnection] = []
     @State private var accounts: [SeekBrokerageAccount] = []
-    @State private var candidates: [SeekTradeCandidate] = []
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var tradeStore: TradeStore
 
     private var api: SeekAPIClient {
         SeekAPIClient(settings: settings)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Connected Brokerage")
-                        .font(.seek(size: 15, weight: .bold))
-                        .foregroundStyle(TradeTheme.ink)
-                    Text(statusText)
-                        .font(.seek(size: 13, weight: .regular))
-                        .foregroundStyle(TradeTheme.muted)
-                        .lineLimit(2)
-                }
-                Spacer()
-                if isLoading {
-                    ProgressView()
-                        .tint(TradeTheme.ink)
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            brokerageSummary
+
+            if !visibleConnections.isEmpty {
+                Divider().background(TradeTheme.line)
+                brokeragesList
             }
 
-            if let connection = connections.first {
-                connectionCard(connection)
-            }
-
-            HStack(spacing: 8) {
-                if connections.isEmpty {
-                    brokerageButton("Connect") {
-                        try await connectBroker()
-                    }
-                } else {
-                    brokerageButton("Sync") {
-                        try await syncAccounts()
-                    }
-                    brokerageButton("Remove") {
-                        try await removeConnection()
-                    }
-                }
-                if showsSignOut {
-                    brokerageButton("Sign Out") {
-                        settings.signOut()
-                        connections = []
-                        accounts = []
-                        candidates = []
-                        statusText = "Signed out"
-                    }
-                }
-            }
-
-            if !accounts.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Accounts")
-                        .font(.seek(size: 13, weight: .semibold))
-                        .foregroundStyle(TradeTheme.muted)
-                    ForEach(accounts) { account in
-                        accountRow(account)
-                    }
-                }
-            }
-
-            if !candidates.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Verified Trades")
-                        .font(.seek(size: 13, weight: .semibold))
-                        .foregroundStyle(TradeTheme.muted)
-                    ForEach(candidates.prefix(3)) { candidate in
-                        candidateRow(candidate)
-                    }
-                }
-            }
+            Divider().background(TradeTheme.line)
+            actionBar
         }
-        .padding(14)
         .background(TradeTheme.panel)
         .overlay(
             RoundedRectangle(cornerRadius: 8)
@@ -102,102 +44,201 @@ struct BrokerageConnectionView: View {
         }
     }
 
-    private func brokerageButton(_ title: String, action: @escaping () async throws -> Void) -> some View {
+    private var brokerageSummary: some View {
+        HStack(alignment: .top, spacing: 12) {
+            summaryIcon
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text("Brokerage Accounts")
+                        .font(.seek(size: 15, weight: .bold))
+                        .foregroundStyle(TradeTheme.ink)
+                        .lineLimit(1)
+                    statusBadge
+                }
+
+                Text(summaryText)
+                    .font(.seek(size: 12, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+                    .lineLimit(2)
+
+                if let errorText = tradeStore.errorText {
+                    Text(errorText)
+                        .font(.seek(size: 12, weight: .regular))
+                        .foregroundStyle(TradeTheme.loss)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 10)
+
+            if isLoading || tradeStore.isLoading {
+                ProgressView()
+                    .controlSize(.mini)
+                    .tint(TradeTheme.ink)
+                    .padding(.top, 2)
+            }
+        }
+        .padding(14)
+    }
+
+    private var summaryIcon: some View {
+        ZStack {
+            Circle()
+                .fill(visibleConnections.isEmpty ? TradeTheme.tile : TradeTheme.spotifyGreen)
+                .frame(width: 38, height: 38)
+            Image(systemName: visibleConnections.isEmpty ? "link" : "building.columns")
+                .font(.seek(size: 14, weight: .semibold))
+                .foregroundStyle(visibleConnections.isEmpty ? TradeTheme.muted : TradeTheme.paper)
+        }
+    }
+
+    private var statusBadge: some View {
+        Text(statusBadgeText)
+            .font(.seek(size: 10, weight: .bold))
+            .foregroundStyle(statusTint)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(TradeTheme.tile)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
+
+    private var brokeragesList: some View {
+        VStack(spacing: 0) {
+            ForEach(visibleConnections) { connection in
+                brokerageRow(connection)
+                if connection.id != visibleConnections.last?.id {
+                    Divider().background(TradeTheme.line).padding(.leading, 66)
+                }
+            }
+        }
+    }
+
+    private func brokerageRow(_ connection: SeekBrokerageConnection) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(connection.disabled ? TradeTheme.tile : TradeTheme.spotifyGreen)
+                    .frame(width: 38, height: 38)
+                Text(connectionInitials(connection))
+                    .font(.seek(size: 13, weight: .black))
+                    .foregroundStyle(connection.disabled ? TradeTheme.muted : TradeTheme.paper)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(connection.brokerageName ?? "Brokerage")
+                    .font(.seek(size: 13, weight: .bold))
+                    .foregroundStyle(TradeTheme.ink)
+                    .lineLimit(1)
+                Text(brokerageDetailText(for: connection))
+                    .font(.seek(size: 11, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                Task {
+                    await perform {
+                        try await removeConnection(connection)
+                    }
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(TradeTheme.loss)
+                    .frame(width: 30, height: 30)
+                    .background(TradeTheme.tile)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading || tradeStore.isLoading)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 62)
+    }
+
+    private var actionBar: some View {
+        HStack(spacing: 8) {
+            brokerageButton(visibleConnections.isEmpty ? "Connect Brokerage" : "Add Brokerage", icon: "plus") {
+                try await connectBroker()
+            }
+
+            if !visibleConnections.isEmpty {
+                brokerageButton("Sync", icon: "arrow.clockwise") {
+                    try await syncAccounts()
+                }
+            }
+
+            if showsSignOut {
+                brokerageButton("Sign Out", icon: "rectangle.portrait.and.arrow.right", tint: TradeTheme.loss) {
+                    settings.signOut()
+                    connections = []
+                    accounts = []
+                    tradeStore.clear()
+                    statusText = "Signed out"
+                }
+            }
+        }
+        .padding(10)
+    }
+
+    private func brokerageButton(
+        _ title: String,
+        icon: String,
+        tint: Color = TradeTheme.ink,
+        action: @escaping () async throws -> Void
+    ) -> some View {
         Button {
             Task {
                 await perform(action)
             }
         } label: {
-            Text(title)
-                .font(.seek(size: 13, weight: .bold))
-                .foregroundStyle(TradeTheme.ink)
-                .frame(maxWidth: .infinity)
-                .frame(height: 38)
-                .background(TradeTheme.tile)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(isLoading)
-    }
-
-    private func connectionCard(_ connection: SeekBrokerageConnection) -> some View {
-        HStack(spacing: 12) {
-            Text(connectionInitials(connection))
-                .font(.seek(size: 15, weight: .black))
-                .foregroundStyle(TradeTheme.paper)
-                .frame(width: 42, height: 42)
-                .background(connection.disabled ? TradeTheme.muted : TradeTheme.spotifyGreen)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(connection.brokerageName ?? "Brokerage connected")
-                    .font(.seek(size: 14, weight: .bold))
-                    .foregroundStyle(TradeTheme.ink)
-                Text(connection.disabled ? "Needs reconnection" : "\(accounts.count) account\(accounts.count == 1 ? "" : "s") connected")
-                    .font(.seek(size: 12, weight: .regular))
-                    .foregroundStyle(TradeTheme.muted)
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .font(.seek(size: 12, weight: .bold))
             }
-
-            Spacer()
-
-            Text(connection.disabled ? "Action needed" : "Connected")
-                .font(.seek(size: 12, weight: .bold))
-                .foregroundStyle(connection.disabled ? TradeTheme.loss : TradeTheme.gain)
-        }
-        .padding(10)
-        .background(TradeTheme.tile)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func accountRow(_ account: SeekBrokerageAccount) -> some View {
-        Button {
-            Task {
-                await perform {
-                    try await api.syncAccount(id: account.id)
-                    candidates = try await api.tradeCandidates()
-                    statusText = "Synced \(account.accountName ?? "account") trades"
-                }
-            }
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(account.accountName ?? "Brokerage account")
-                        .font(.seek(size: 14, weight: .semibold))
-                        .foregroundStyle(TradeTheme.ink)
-                    Text([account.accountType, account.currencyCode].compactMap { $0 }.joined(separator: " - "))
-                        .font(.seek(size: 12, weight: .regular))
-                        .foregroundStyle(TradeTheme.muted)
-                }
-                Spacer()
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(TradeTheme.muted)
-            }
-            .padding(10)
+            .foregroundStyle(tint)
+            .frame(maxWidth: .infinity)
+            .frame(height: 34)
             .background(TradeTheme.tile)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
         }
         .buttonStyle(.plain)
+        .disabled(isLoading || tradeStore.isLoading)
     }
 
-    private func candidateRow(_ candidate: SeekTradeCandidate) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(candidate.status.capitalized) \(candidate.side.capitalized)")
-                    .font(.seek(size: 14, weight: .semibold))
-                    .foregroundStyle(TradeTheme.ink)
-                Text(candidate.providerSourceType.replacingOccurrences(of: "_", with: " "))
-                    .font(.seek(size: 12, weight: .regular))
-                    .foregroundStyle(TradeTheme.muted)
-            }
-            Spacer()
-            Text(candidate.returnPercent?.percentText ?? "Verified")
-                .font(.seek(size: 14, weight: .bold))
-                .foregroundStyle((candidate.returnPercent ?? 0) >= 0 ? TradeTheme.gain : TradeTheme.loss)
+    private var summaryText: String {
+        if visibleConnections.isEmpty {
+            return "Connect a brokerage to sync verified positions."
         }
-        .padding(10)
-        .background(TradeTheme.tile)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        if visibleConnections.contains(where: \.disabled) {
+            return "One brokerage needs attention before new trades can sync."
+        }
+        if let lastSyncedAt = tradeStore.lastSyncedAt {
+            return "\(visibleConnections.count) brokerage\(visibleConnections.count == 1 ? "" : "s"), \(accounts.count) account\(accounts.count == 1 ? "" : "s") - updated \(lastSyncedAt.relativeSyncText)"
+        }
+        return "\(visibleConnections.count) brokerage\(visibleConnections.count == 1 ? "" : "s"), \(accounts.count) account\(accounts.count == 1 ? "" : "s") connected"
+    }
+
+    private var statusBadgeText: String {
+        if visibleConnections.isEmpty { return "Not connected" }
+        if visibleConnections.contains(where: \.disabled) { return "Reconnect" }
+        if tradeStore.errorText != nil { return "Error" }
+        return "Live"
+    }
+
+    private var statusTint: Color {
+        if visibleConnections.isEmpty { return TradeTheme.muted }
+        if visibleConnections.contains(where: \.disabled) || tradeStore.errorText != nil { return TradeTheme.loss }
+        return TradeTheme.gain
+    }
+
+    private var visibleConnections: [SeekBrokerageConnection] {
+        deduplicatedConnections(connections)
     }
 
     private func perform(_ action: () async throws -> Void) async {
@@ -228,12 +269,13 @@ struct BrokerageConnectionView: View {
 
     private func syncAccounts() async throws {
         settings.resetAPIBaseURLToHostedDefault()
-        let result = try await api.syncAllAccounts()
-        connections = result.0
-        accounts = result.1
-        candidates = result.2
-        settings.brokerageConnected = !connections.isEmpty
-        statusText = "Synced \(result.0.count) connections, \(result.1.count) accounts, and \(candidates.count) trades"
+        guard let result = await tradeStore.syncAllAccounts() else {
+            statusText = tradeStore.statusText ?? "Sync failed"
+            return
+        }
+        connections = deduplicatedConnections(result.connections)
+        accounts = result.accounts
+        statusText = "Synced \(visibleConnections.count) brokerages and \(accounts.count) accounts"
     }
 
     private func loadConnectedAccounts() async {
@@ -241,35 +283,90 @@ struct BrokerageConnectionView: View {
         do {
             async let loadedConnections = api.connections()
             async let loadedAccounts = api.accounts()
-            async let loadedCandidates = api.tradeCandidates()
-            connections = try await loadedConnections
+            connections = deduplicatedConnections(try await loadedConnections)
             accounts = try await loadedAccounts
-            candidates = try await loadedCandidates
-            settings.brokerageConnected = !connections.isEmpty
-            if !connections.isEmpty {
-                statusText = "\(connections.count) brokerage connected, \(accounts.count) accounts, \(candidates.count) trades synced"
+            settings.brokerageConnected = !visibleConnections.isEmpty
+            if !visibleConnections.isEmpty {
+                statusText = "\(visibleConnections.count) brokerage connected, \(accounts.count) accounts ready"
             }
         } catch {
             statusText = error.localizedDescription
         }
     }
 
-    private func removeConnection() async throws {
-        guard let connection = connections.first else { return }
+    private func removeConnection(_ connection: SeekBrokerageConnection) async throws {
         try await api.removeConnection(id: connection.id)
-        connections = []
-        accounts = []
-        candidates = []
-        settings.brokerageConnected = false
-        statusText = "Brokerage connection removed"
+        connections.removeAll { $0.id == connection.id || connectionKey($0) == connectionKey(connection) }
+        accounts.removeAll { $0.brokerageConnectionId == connection.id }
+        tradeStore.clear()
+        settings.brokerageConnected = !visibleConnections.isEmpty
+        statusText = "Removed \(connection.brokerageName ?? "brokerage")"
     }
 
-    private func connectionInitials(_ connection: SeekBrokerageConnection) -> String {
-        let source = connection.brokerageName ?? connection.brokerageSlug ?? "GH"
+    private func brokerageDetailText(for connection: SeekBrokerageConnection) -> String {
+        if connection.disabled {
+            return "Needs reconnection"
+        }
+
+        let accountCount = accounts.filter { account in
+            guard let brokerageConnectionId = account.brokerageConnectionId else { return false }
+            return brokerageConnectionId == connection.id
+        }.count
+        if accountCount > 0 {
+            return "\(accountCount) account\(accountCount == 1 ? "" : "s") connected"
+        }
+        return "Connected"
+    }
+
+    private func connectionInitials(_ connection: SeekBrokerageConnection?) -> String {
+        let source = connection?.brokerageName ?? connection?.brokerageSlug ?? "GH"
         let pieces = source.split(separator: " ")
         if pieces.count > 1 {
             return pieces.prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
         }
         return String(source.prefix(2)).uppercased()
+    }
+
+    private func deduplicatedConnections(_ source: [SeekBrokerageConnection]) -> [SeekBrokerageConnection] {
+        var chosen: [String: SeekBrokerageConnection] = [:]
+        var order: [String] = []
+
+        for connection in source {
+            let key = connectionKey(connection)
+            if let existing = chosen[key] {
+                if existing.disabled && !connection.disabled {
+                    chosen[key] = connection
+                }
+            } else {
+                chosen[key] = connection
+                order.append(key)
+            }
+        }
+
+        return order.compactMap { chosen[$0] }
+    }
+
+    private func connectionKey(_ connection: SeekBrokerageConnection) -> String {
+        let raw = connection.brokerageSlug ?? connection.brokerageName ?? connection.id
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
+
+private extension Date {
+    var relativeSyncText: String {
+        let elapsed = max(0, Int(Date().timeIntervalSince(self)))
+        if elapsed < 60 {
+            return "just now"
+        }
+        let minutes = elapsed / 60
+        if minutes < 60 {
+            return "\(minutes)m ago"
+        }
+        let hours = minutes / 60
+        if hours < 24 {
+            return "\(hours)h ago"
+        }
+        let days = hours / 24
+        return "\(days)d ago"
     }
 }

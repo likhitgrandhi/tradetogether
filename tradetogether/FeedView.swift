@@ -10,6 +10,7 @@ import UIKit
 
 struct FeedView: View {
     let store: DemoStore
+    @EnvironmentObject private var postStore: PostStore
     @State private var selectedTab: FeedTab = .posts
     @State private var selectedStockID: StockInstrument.ID?
     @State private var selectedProfileID: TraderProfile.ID?
@@ -85,6 +86,7 @@ struct FeedView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
         try? await Task.sleep(for: .milliseconds(650))
+        await postStore.loadFeed()
         await MainActor.run {
             isRefreshing = false
             pullDistance = 0
@@ -232,6 +234,14 @@ struct FeedView: View {
             if selectedTab == .following {
                 followingSectionHeader
             }
+            if selectedTab == .posts {
+                if postStore.isLoading && postStore.feedPosts.isEmpty {
+                    realPostLoadingRow
+                }
+                ForEach(postStore.feedPosts) { post in
+                    RealPostCard(post: post)
+                }
+            }
             ForEach(visiblePosts) { post in
                 NavigationLink {
                     PostDetailView(post: post, store: store)
@@ -242,6 +252,23 @@ struct FeedView: View {
                 .buttonStyle(.plain)
             }
         }
+        .background(TradeTheme.paper)
+        .task {
+            await postStore.loadFeed()
+        }
+    }
+
+    private var realPostLoadingRow: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .tint(TradeTheme.ink)
+            Text("Loading posts")
+                .font(.seek(size: 13, weight: .regular))
+                .foregroundStyle(TradeTheme.muted)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(TradeTheme.paper)
     }
 
@@ -260,6 +287,183 @@ struct FeedView: View {
         .padding(.bottom, 6)
         .background(TradeTheme.paper)
     }
+}
+
+struct RealPostCard: View {
+    let post: GrowHousePost
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                realAvatar
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(post.author.displayName)
+                        .font(.seek(size: 14, weight: .bold))
+                        .foregroundStyle(TradeTheme.ink)
+                        .lineLimit(1)
+                    Text("\(post.author.handle) - \(relativeCreatedAt)")
+                        .font(.seek(size: 12, weight: .regular))
+                        .foregroundStyle(TradeTheme.muted)
+                        .lineLimit(1)
+                }
+                Spacer()
+                if post.verifiedTrade != nil {
+                    Text("Verified trade")
+                        .font(.seek(size: 10, weight: .bold))
+                        .foregroundStyle(TradeTheme.verified)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(TradeTheme.tile)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                }
+            }
+
+            Text(post.body)
+                .font(.seek(size: 15, weight: .regular))
+                .foregroundStyle(TradeTheme.ink)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let verifiedTrade = post.verifiedTrade {
+                verifiedTradeSummary(verifiedTrade)
+            }
+
+            HStack(spacing: 22) {
+                postAction("bubble.left", "0")
+                postAction("arrow.2.squarepath", "0")
+                postAction("hand.thumbsup", "0")
+                Spacer()
+                Image(systemName: "arrowshape.turn.up.right")
+                    .font(.seek(size: 17, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(TradeTheme.paper)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(TradeTheme.line)
+                .frame(height: 1)
+        }
+    }
+
+    private var realAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(AvatarColor.color(for: post.author.id))
+            Text(authorInitials)
+                .font(.seek(size: 12, weight: .black))
+                .foregroundStyle(.white)
+        }
+        .frame(width: 36, height: 36)
+    }
+
+    private var authorInitials: String {
+        let pieces = post.author.displayName.split(separator: " ")
+        if pieces.count > 1 {
+            return pieces.prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
+        }
+        return String(post.author.displayName.prefix(2)).uppercased()
+    }
+
+    private var relativeCreatedAt: String {
+        PostDateFormatter.relativeText(from: post.createdAt)
+    }
+
+    private func verifiedTradeSummary(_ trade: GrowHousePostVerifiedTrade) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 7) {
+                    Text(trade.symbol ?? "UNKNOWN")
+                        .font(.seek(size: 14, weight: .bold))
+                        .foregroundStyle(TradeTheme.ink)
+                    Text(trade.side.uppercased())
+                        .font(.seek(size: 9, weight: .bold))
+                        .foregroundStyle(sideTint(trade))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(TradeTheme.panel)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                Text(trade.instrumentName ?? trade.providerSourceType.replacingOccurrences(of: "_", with: " ").capitalized)
+                    .font(.seek(size: 11, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+                    .lineLimit(1)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(pnlText(trade))
+                    .font(.seek(size: 14, weight: .bold).monospacedDigit())
+                    .foregroundStyle(pnlTint(trade))
+                Text("Entry \(trade.entryPrice?.currencyText ?? "-")")
+                    .font(.seek(size: 11, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+            }
+        }
+        .padding(12)
+        .background(TradeTheme.tile)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func postAction(_ icon: String, _ count: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.seek(size: 17, weight: .regular))
+            Text(count)
+                .font(.seek(size: 12, weight: .regular).monospacedDigit())
+        }
+        .foregroundStyle(TradeTheme.muted)
+    }
+
+    private func sideTint(_ trade: GrowHousePostVerifiedTrade) -> Color {
+        trade.side.lowercased() == "sell" || trade.side.lowercased() == "short" ? TradeTheme.loss : TradeTheme.gain
+    }
+
+    private func pnlTint(_ trade: GrowHousePostVerifiedTrade) -> Color {
+        let value = trade.returnPercent ?? trade.unrealizedPnl ?? trade.realizedPnl ?? 0
+        return value >= 0 ? TradeTheme.gain : TradeTheme.loss
+    }
+
+    private func pnlText(_ trade: GrowHousePostVerifiedTrade) -> String {
+        if let returnPercent = trade.returnPercent {
+            return returnPercent.percentText
+        }
+        if let unrealizedPnl = trade.unrealizedPnl {
+            return unrealizedPnl.currencyText
+        }
+        if let realizedPnl = trade.realizedPnl {
+            return realizedPnl.currencyText
+        }
+        return "Verified"
+    }
+}
+
+enum PostDateFormatter {
+    static func relativeText(from isoString: String) -> String {
+        guard let date = isoFormatter.date(from: isoString) ?? fallbackFormatter.date(from: isoString) else {
+            return "now"
+        }
+        let elapsed = max(0, Int(Date().timeIntervalSince(date)))
+        if elapsed < 60 { return "now" }
+        let minutes = elapsed / 60
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h" }
+        return "\(hours / 24)d"
+    }
+
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let fallbackFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 }
 
 private struct FeedPullDistancePreferenceKey: PreferenceKey {

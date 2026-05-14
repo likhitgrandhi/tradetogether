@@ -301,52 +301,111 @@ enum AvatarColor {
 struct TradeComposerView: View {
     let author: TraderProfile
     let stocks: [StockInstrument]
-    @State private var drafts: [String] = [""]
-    @State private var selectedStockID: StockInstrument.ID
-    @State private var direction: TradeDirection = .long
-    @State private var product: TradeProduct = .equity
-    @State private var timeframe = "2-4 weeks"
+    @EnvironmentObject private var tradeStore: TradeStore
+    @EnvironmentObject private var postStore: PostStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var mode: ComposerMode = .general
+    @State private var bodyText = ""
+    @State private var selectedTradeId: SeekTradeCandidate.ID?
+    @FocusState private var isBodyFocused: Bool
 
     init(author: TraderProfile, stocks: [StockInstrument]) {
         self.author = author
         self.stocks = stocks
-        _selectedStockID = State(initialValue: stocks.first?.id ?? "")
     }
 
-    private var selectedStock: StockInstrument? {
-        stocks.first { $0.id == selectedStockID }
+    private var openTrades: [SeekTradeCandidate] {
+        tradeStore.trades.filter { $0.status.lowercased() == "open" }
     }
 
     private var canPost: Bool {
-        drafts.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let hasBody = !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch mode {
+        case .general:
+            return hasBody
+        case .activeTrade:
+            return hasBody && selectedTradeId != nil
+        }
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                composerHeader
-                tradeControls
-                draftThread
-                addThreadButton
+        VStack(spacing: 0) {
+            composerHeader
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    modePicker
+                    if mode == .activeTrade {
+                        activeTradePicker
+                    }
+                    composerBody
+                    if let errorText = postStore.errorText {
+                        Text(errorText)
+                            .font(.seek(size: 12, weight: .regular))
+                            .foregroundStyle(TradeTheme.loss)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 18)
             }
         }
         .interactiveKeyboardDismissal()
         .dismissKeyboardOnBackgroundTap()
         .background(TradeTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .task {
+            await tradeStore.load()
+            selectedTradeId = selectedTradeId ?? openTrades.first?.id
+        }
     }
 
     private var composerHeader: some View {
         HStack {
-            Text("New Trade Idea")
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.seek(size: 13, weight: .bold))
+                    .foregroundStyle(TradeTheme.ink)
+                    .frame(width: 34, height: 34)
+                    .background(TradeTheme.tile)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text("Create Post")
                 .font(.tradeScreenTitle)
                 .foregroundStyle(TradeTheme.ink)
+
             Spacer()
-            TradePostPill(title: "Post", isEnabled: canPost) {}
+
+            Button {
+                Task { await submitPost() }
+            } label: {
+                if postStore.isPosting {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(TradeTheme.paper)
+                        .frame(width: 62, height: 34)
+                        .background(TradeTheme.ink)
+                        .clipShape(Capsule())
+                } else {
+                    Text("Post")
+                        .font(.seek(size: 14, weight: .bold))
+                        .foregroundStyle(canPost ? TradeTheme.paper : TradeTheme.muted)
+                        .frame(width: 62, height: 34)
+                        .background(canPost ? TradeTheme.ink : TradeTheme.tile)
+                        .clipShape(Capsule())
+                }
+            }
+            .disabled(!canPost || postStore.isPosting)
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 18)
-        .padding(.top, 12)
-        .padding(.bottom, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
         .background(TradeTheme.paper)
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -355,125 +414,181 @@ struct TradeComposerView: View {
         }
     }
 
-    private var tradeControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Setup", subtitle: selectedStock?.displaySymbol ?? "Choose an instrument")
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(stocks) { stock in
-                        Button {
-                            withAnimation(.snappy) {
-                                selectedStockID = stock.id
-                            }
-                        } label: {
-                            Text(stock.symbol)
-                                .font(.tradeFilterChip)
-                                .foregroundStyle(selectedStockID == stock.id ? TradeTheme.paper : TradeTheme.ink)
-                                .padding(.horizontal, 16)
-                                .frame(minHeight: 36)
-                                .background(Capsule().fill(selectedStockID == stock.id ? TradeTheme.ink : Color.clear))
-                                .overlay {
-                                    Capsule().stroke(selectedStockID == stock.id ? Color.clear : TradeTheme.line, lineWidth: 1)
-                                }
-                        }
-                        .buttonStyle(TradePressableStyle())
-                    }
-                }
-            }
-
+    private var modePicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Type")
+                .font(.seek(size: 12, weight: .bold))
+                .foregroundStyle(TradeTheme.muted)
+                .textCase(.uppercase)
             HStack(spacing: 8) {
-                Picker("Direction", selection: $direction) {
-                    Text("Long").tag(TradeDirection.long)
-                    Text("Short").tag(TradeDirection.short)
-                }
-                .pickerStyle(.segmented)
-                Picker("Product", selection: $product) {
-                    ForEach(TradeProduct.allCases, id: \.self) { item in
-                        Text(item.rawValue).tag(item)
+                ForEach(ComposerMode.allCases) { item in
+                    Button {
+                        withAnimation(.snappy) {
+                            mode = item
+                            selectedTradeId = selectedTradeId ?? openTrades.first?.id
+                        }
+                    } label: {
+                        Text(item.title)
+                            .font(.seek(size: 13, weight: .bold))
+                            .foregroundStyle(mode == item ? TradeTheme.paper : TradeTheme.ink)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 38)
+                            .background(mode == item ? TradeTheme.ink : TradeTheme.tile)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .buttonStyle(.plain)
                 }
-                .pickerStyle(.segmented)
             }
+        }
+    }
 
-            TextField("Timeframe", text: $timeframe)
-                .font(.tradePostBody)
-                .foregroundStyle(TradeTheme.ink)
-                .tint(TradeTheme.ink)
+    private var activeTradePicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Active Trade")
+                .font(.seek(size: 12, weight: .bold))
+                .foregroundStyle(TradeTheme.muted)
+                .textCase(.uppercase)
+
+            if tradeStore.isLoading && openTrades.isEmpty {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(TradeTheme.ink)
+                    Text("Loading verified trades")
+                        .font(.seek(size: 13, weight: .regular))
+                        .foregroundStyle(TradeTheme.muted)
+                }
                 .padding(12)
-                .background(TradeTheme.tile)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(TradeTheme.panel)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .padding(16)
-        .background(TradeTheme.panel)
-    }
-
-    private var draftThread: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(drafts.indices, id: \.self) { index in
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(spacing: 0) {
-                        if index == 0 {
-                            TraderAvatar(profile: author, size: 36)
-                        } else {
-                            Circle()
-                                .strokeBorder(TradeTheme.line, lineWidth: 1)
-                                .frame(width: 20, height: 20)
-                                .padding(.top, 8)
+            } else if openTrades.isEmpty {
+                Text("No open verified trades found. Sync a brokerage account first.")
+                    .font(.seek(size: 13, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(TradeTheme.panel)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(openTrades) { trade in
+                        Button {
+                            selectedTradeId = trade.id
+                        } label: {
+                            verifiedTradeRow(trade)
                         }
-
-                        Rectangle()
-                            .fill(TradeTheme.line)
-                            .frame(width: 1)
-                            .frame(maxHeight: .infinity)
-                            .padding(.top, 5)
-                            .accessibilityHidden(true)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        if index == 0 {
-                            Text(author.handle.replacingOccurrences(of: "@", with: ""))
-                                .font(.tradeDisplayName)
-                                .foregroundStyle(TradeTheme.ink)
-                        }
-                        TextField(index == 0 ? "Share the trade thesis..." : "Add more context...", text: $drafts[index], axis: .vertical)
-                            .font(.tradePostBody)
-                            .foregroundStyle(TradeTheme.ink)
-                            .tint(TradeTheme.ink)
-                            .lineLimit(3...12)
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .background(TradeTheme.panel)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(TradeTheme.line, lineWidth: 1)
+                )
             }
         }
-        .background(TradeTheme.paper)
     }
 
-    private var addThreadButton: some View {
-        Button {
-            withAnimation(.snappy) {
-                drafts.append("")
+    private var composerBody: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                TraderAvatar(profile: author, size: 36)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(author.handle.replacingOccurrences(of: "@", with: ""))
+                        .font(.tradeDisplayName)
+                        .foregroundStyle(TradeTheme.ink)
+                    TextField(mode.placeholder, text: $bodyText, axis: .vertical)
+                        .font(.tradePostBody)
+                        .foregroundStyle(TradeTheme.ink)
+                        .tint(TradeTheme.ink)
+                        .lineLimit(4...12)
+                        .focused($isBodyFocused)
+                }
             }
-        } label: {
-            HStack(spacing: 12) {
-                Circle()
-                    .strokeBorder(TradeTheme.line, lineWidth: 1)
-                    .frame(width: 20, height: 20)
-                    .overlay {
-                        Image(systemName: "plus")
-                            .font(.seek(size: 10, weight: .semibold))
-                            .foregroundStyle(TradeTheme.muted)
-                    }
-                    .padding(.leading, 24)
-                Text("Add to thread")
-                    .font(.tradeHandle)
-                    .foregroundStyle(TradeTheme.muted)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 16)
+            .padding(14)
+            .background(TradeTheme.panel)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(TradePressableStyle())
+    }
+
+    private func verifiedTradeRow(_ trade: SeekTradeCandidate) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 7) {
+                    Text(trade.symbol ?? "UNKNOWN")
+                        .font(.seek(size: 14, weight: .bold))
+                        .foregroundStyle(TradeTheme.ink)
+                    Text(trade.side.uppercased())
+                        .font(.seek(size: 9, weight: .bold))
+                        .foregroundStyle(sideTint(trade))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(TradeTheme.tile)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                Text(trade.instrumentName ?? trade.providerSourceType.replacingOccurrences(of: "_", with: " ").capitalized)
+                    .font(.seek(size: 11, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if selectedTradeId == trade.id {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.seek(size: 18, weight: .semibold))
+                    .foregroundStyle(TradeTheme.gain)
+            } else {
+                Circle()
+                    .stroke(TradeTheme.line, lineWidth: 1)
+                    .frame(width: 18, height: 18)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 58)
+    }
+
+    private func submitPost() async {
+        let created: GrowHousePost?
+        switch mode {
+        case .general:
+            created = await postStore.createGeneralPost(body: bodyText)
+        case .activeTrade:
+            guard let selectedTradeId else { return }
+            created = await postStore.createVerifiedTradePost(candidateId: selectedTradeId, body: bodyText)
+        }
+
+        if created != nil {
+            bodyText = ""
+            dismiss()
+        }
+    }
+
+    private func sideTint(_ trade: SeekTradeCandidate) -> Color {
+        trade.side.lowercased() == "sell" || trade.side.lowercased() == "short" ? TradeTheme.loss : TradeTheme.gain
+    }
+}
+
+private enum ComposerMode: String, CaseIterable, Identifiable {
+    case general
+    case activeTrade
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .general: "Post"
+        case .activeTrade: "Active Trade"
+        }
+    }
+
+    var placeholder: String {
+        switch self {
+        case .general:
+            return "What are you watching?"
+        case .activeTrade:
+            return "Add context for this verified active trade..."
+        }
     }
 }
 

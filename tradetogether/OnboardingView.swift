@@ -12,8 +12,10 @@ struct GrowHouseSplashView: View {
     var body: some View {
         ZStack {
             TradeTheme.spotifyBlack.ignoresSafeArea()
-            GrowHouseMark(size: 156, foreground: TradeTheme.paper, background: TradeTheme.spotifyGreen)
-                .shadow(color: TradeTheme.spotifyGreen.opacity(0.22), radius: 28, x: 0, y: 16)
+            Image("BellLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 168, height: 156)
         }
         .preferredColorScheme(.dark)
     }
@@ -68,6 +70,10 @@ struct OnboardingView: View {
             }
         }
         .task {
+            if settings.sessionExpired {
+                statusText = "Your session expired. Sign in again to continue."
+                step = .email
+            }
             await primeMobileConfiguration()
             await loadExistingBrokerageState()
         }
@@ -137,6 +143,10 @@ struct OnboardingView: View {
 
     private var authIntro: some View {
         VStack(spacing: 20) {
+            if settings.sessionExpired {
+                sessionExpiredBanner
+            }
+
             Text("What is your email address?")
                 .font(.seek(size: 25, weight: .semibold))
                 .foregroundStyle(TradeTheme.ink.opacity(0.86))
@@ -160,6 +170,32 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private var sessionExpiredBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "lock.rotation")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(TradeTheme.loss)
+                .frame(width: 22, height: 22)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Session expired")
+                    .font(.seek(size: 13, weight: .bold))
+                    .foregroundStyle(TradeTheme.ink)
+                Text("Sign in again to reconnect your brokerage data.")
+                    .font(.seek(size: 12, weight: .regular))
+                    .foregroundStyle(TradeTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(TradeTheme.elevated)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(TradeTheme.line, lineWidth: 1)
+        )
     }
 
     private var passwordStep: some View {
@@ -411,8 +447,7 @@ struct OnboardingView: View {
                 ? try await auth.signUp(email: email, password: password)
                 : try await auth.signIn(email: email, password: password)
 
-            settings.authEmail = email
-            settings.accessToken = session.accessToken
+            settings.apply(authSession: session, email: email)
             statusText = "Signed in"
             await loadExistingBrokerageState()
             if connections.isEmpty {

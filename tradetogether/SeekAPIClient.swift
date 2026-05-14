@@ -52,9 +52,15 @@ struct SeekAPIHealth: Decodable {
 
 struct SeekAuthSession: Decodable {
     let accessToken: String
+    let refreshToken: String?
+    let expiresIn: Int?
+    let expiresAt: TimeInterval?
 
     enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case expiresIn = "expires_in"
+        case expiresAt = "expires_at"
     }
 }
 
@@ -88,12 +94,14 @@ struct SeekBrokerageConnection: Decodable, Identifiable {
 
 struct SeekBrokerageAccount: Decodable, Identifiable {
     let id: String
+    let brokerageConnectionId: String?
     let accountName: String?
     let accountType: String?
     let currencyCode: String?
 
     enum CodingKeys: String, CodingKey {
         case id
+        case brokerageConnectionId = "brokerage_connection_id"
         case accountName = "account_name"
         case accountType = "account_type"
         case currencyCode = "currency_code"
@@ -101,6 +109,72 @@ struct SeekBrokerageAccount: Decodable, Identifiable {
 }
 
 struct SeekTradeCandidate: Decodable, Identifiable {
+    let id: String
+    let symbol: String?
+    let instrumentName: String?
+    let side: String
+    let status: String
+    let quantity: Double?
+    let entryPrice: Double?
+    let markPrice: Double?
+    let exitPrice: Double?
+    let realizedPnl: Double?
+    let unrealizedPnl: Double?
+    let returnPercent: Double?
+    let providerSourceType: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case symbol
+        case instrumentName = "instrument_name"
+        case side
+        case status
+        case quantity
+        case entryPrice = "entry_price"
+        case markPrice = "mark_price"
+        case exitPrice = "exit_price"
+        case realizedPnl = "realized_pnl"
+        case unrealizedPnl = "unrealized_pnl"
+        case returnPercent = "return_percent"
+        case providerSourceType = "provider_source_type"
+    }
+}
+
+struct GrowHousePost: Decodable, Identifiable {
+    let id: String
+    let author: GrowHousePostAuthor
+    let source: String
+    let body: String
+    let visibility: String
+    let createdAt: String
+    let verifiedTrade: GrowHousePostVerifiedTrade?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case author
+        case source
+        case body
+        case visibility
+        case createdAt = "created_at"
+        case verifiedTrade = "verified_trade"
+    }
+}
+
+struct GrowHousePostAuthor: Decodable, Identifiable {
+    let id: String
+    let handle: String
+    let displayName: String
+    let avatarURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case handle
+        case displayName = "display_name"
+        case avatarURL = "avatar_url"
+    }
+}
+
+struct GrowHousePostVerifiedTrade: Decodable, Identifiable {
     let id: String
     let symbol: String?
     let instrumentName: String?
@@ -144,6 +218,14 @@ final class SeekAPISettings: ObservableObject {
         didSet { UserDefaults.standard.set(accessToken, forKey: Keys.accessToken) }
     }
 
+    @Published var refreshToken: String {
+        didSet { UserDefaults.standard.set(refreshToken, forKey: Keys.refreshToken) }
+    }
+
+    @Published var accessTokenExpiresAt: TimeInterval {
+        didSet { UserDefaults.standard.set(accessTokenExpiresAt, forKey: Keys.accessTokenExpiresAt) }
+    }
+
     @Published var supabaseURL: String {
         didSet { UserDefaults.standard.set(supabaseURL, forKey: Keys.supabaseURL) }
     }
@@ -164,11 +246,15 @@ final class SeekAPISettings: ObservableObject {
         didSet { UserDefaults.standard.set(brokerageConnected, forKey: Keys.brokerageConnected) }
     }
 
+    @Published var sessionExpired = false
+
     private init() {
         apiBaseURL = GrowHouseAPIConstants.resolvedBaseURL(
             from: UserDefaults.standard.string(forKey: Keys.apiBaseURL)
         )
         accessToken = UserDefaults.standard.string(forKey: Keys.accessToken) ?? ""
+        refreshToken = UserDefaults.standard.string(forKey: Keys.refreshToken) ?? ""
+        accessTokenExpiresAt = UserDefaults.standard.double(forKey: Keys.accessTokenExpiresAt)
         supabaseURL = UserDefaults.standard.string(forKey: Keys.supabaseURL) ?? GrowHouseAPIConstants.defaultSupabaseURL
         supabaseAnonKey = UserDefaults.standard.string(forKey: Keys.supabaseAnonKey) ?? GrowHouseAPIConstants.defaultSupabaseAnonKey
         authEmail = UserDefaults.standard.string(forKey: Keys.authEmail) ?? ""
@@ -180,6 +266,16 @@ final class SeekAPISettings: ObservableObject {
         !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var canRefreshSession: Bool {
+        !refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var shouldRefreshAccessToken: Bool {
+        guard accessTokenExpiresAt > 0 else { return false }
+        let refreshSkew: TimeInterval = 60
+        return Date().timeIntervalSince1970 >= accessTokenExpiresAt - refreshSkew
+    }
+
     var hasAuthConfiguration: Bool {
         !supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !supabaseAnonKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -187,8 +283,39 @@ final class SeekAPISettings: ObservableObject {
 
     func signOut() {
         accessToken = ""
+        refreshToken = ""
+        accessTokenExpiresAt = 0
         onboardingCompleted = false
         brokerageConnected = false
+        sessionExpired = false
+    }
+
+    func expireSession() {
+        accessToken = ""
+        refreshToken = ""
+        accessTokenExpiresAt = 0
+        onboardingCompleted = false
+        brokerageConnected = false
+        sessionExpired = true
+    }
+
+    func apply(authSession session: SeekAuthSession, email: String? = nil) {
+        accessToken = session.accessToken
+        sessionExpired = false
+        if let refreshToken = session.refreshToken,
+           !refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            self.refreshToken = refreshToken
+        }
+
+        if let expiresAt = session.expiresAt {
+            accessTokenExpiresAt = expiresAt
+        } else if let expiresIn = session.expiresIn {
+            accessTokenExpiresAt = Date().timeIntervalSince1970 + TimeInterval(expiresIn)
+        }
+
+        if let email {
+            authEmail = email
+        }
     }
 
     func apply(mobileConfig: GrowHouseMobileConfig) {
@@ -206,6 +333,8 @@ final class SeekAPISettings: ObservableObject {
     private enum Keys {
         static let apiBaseURL = "seek.apiBaseURL"
         static let accessToken = "seek.accessToken"
+        static let refreshToken = "seek.refreshToken"
+        static let accessTokenExpiresAt = "seek.accessTokenExpiresAt"
         static let supabaseURL = "seek.supabaseURL"
         static let supabaseAnonKey = "seek.supabaseAnonKey"
         static let authEmail = "seek.authEmail"
@@ -218,14 +347,32 @@ struct SeekSupabaseAuthClient {
     let settings: SeekAPISettings
 
     func signIn(email: String, password: String) async throws -> SeekAuthSession {
-        try await authenticate(path: "/auth/v1/token?grant_type=password", email: email, password: password)
+        try await authenticate(
+            path: "/auth/v1/token?grant_type=password",
+            body: ["email": email, "password": password]
+        )
     }
 
     func signUp(email: String, password: String) async throws -> SeekAuthSession {
-        try await authenticate(path: "/auth/v1/signup", email: email, password: password)
+        try await authenticate(
+            path: "/auth/v1/signup",
+            body: ["email": email, "password": password]
+        )
     }
 
-    private func authenticate(path: String, email: String, password: String) async throws -> SeekAuthSession {
+    func refreshSession() async throws -> SeekAuthSession {
+        let refreshToken = settings.refreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !refreshToken.isEmpty else {
+            throw SeekAPIError.authenticationExpired
+        }
+
+        return try await authenticate(
+            path: "/auth/v1/token?grant_type=refresh_token",
+            body: ["refresh_token": refreshToken]
+        )
+    }
+
+    private func authenticate(path: String, body: [String: String]) async throws -> SeekAuthSession {
         guard let baseURL = URL(string: settings.supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
               let url = URL(string: path, relativeTo: baseURL) else {
             throw SeekAPIError.invalidURL
@@ -239,7 +386,7 @@ struct SeekSupabaseAuthClient {
         request.setValue(settings.supabaseAnonKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(settings.supabaseAnonKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(["email": email, "password": password])
+        request.httpBody = try JSONEncoder().encode(body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -313,11 +460,41 @@ struct SeekAPIClient {
         return response.candidates
     }
 
+    func feedPosts() async throws -> [GrowHousePost] {
+        let response: PostsResponse = try await send(path: "/feed", method: "GET", authenticated: false)
+        return response.posts
+    }
+
+    func myPosts() async throws -> [GrowHousePost] {
+        let response: PostsResponse = try await send(path: "/posts/mine", method: "GET")
+        return response.posts
+    }
+
+    func createPost(body: String, verifiedTradeCandidateId: String? = nil) async throws -> GrowHousePost {
+        let requestBody = CreatePostRequest(
+            body: body,
+            verifiedTradeCandidateId: verifiedTradeCandidateId,
+            visibility: "public"
+        )
+        let response: CreatePostResponse = try await send(
+            path: "/posts",
+            method: "POST",
+            body: requestBody
+        )
+        return response.post
+    }
+
     private func send<Response: Decodable>(
         path: String,
         method: String,
-        authenticated: Bool = true
+        body: Encodable? = nil,
+        authenticated: Bool = true,
+        allowsTokenRefresh: Bool = true
     ) async throws -> Response {
+        if authenticated, allowsTokenRefresh, settings.shouldRefreshAccessToken {
+            try await refreshAccessToken()
+        }
+
         guard let url = URL(string: path, relativeTo: normalizedBaseURL) else {
             throw SeekAPIError.invalidURL
         }
@@ -325,6 +502,10 @@ struct SeekAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(AnyEncodable(body))
+        }
         if authenticated {
             guard !settings.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw SeekAPIError.missingAccessToken
@@ -337,12 +518,37 @@ struct SeekAPIClient {
             throw SeekAPIError.invalidResponse
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401, authenticated, allowsTokenRefresh {
+                try await refreshAccessToken()
+                return try await send(
+                    path: path,
+                    method: method,
+                    body: body,
+                    authenticated: authenticated,
+                    allowsTokenRefresh: false
+                )
+            }
             throw SeekAPIError.httpStatus(httpResponse.statusCode, String(data: data, encoding: .utf8))
         }
         if data.isEmpty {
             return EmptyResponse() as! Response
         }
         return try JSONDecoder().decode(Response.self, from: data)
+    }
+
+    private func refreshAccessToken() async throws {
+        guard settings.canRefreshSession else {
+            settings.expireSession()
+            throw SeekAPIError.authenticationExpired
+        }
+
+        do {
+            let session = try await SeekSupabaseAuthClient(settings: settings).refreshSession()
+            settings.apply(authSession: session)
+        } catch {
+            settings.expireSession()
+            throw SeekAPIError.authenticationExpired
+        }
     }
 
     private var normalizedBaseURL: URL {
@@ -370,12 +576,39 @@ private struct CandidatesResponse: Decodable {
     let candidates: [SeekTradeCandidate]
 }
 
+private struct PostsResponse: Decodable {
+    let posts: [GrowHousePost]
+}
+
+private struct CreatePostResponse: Decodable {
+    let post: GrowHousePost
+}
+
+private struct CreatePostRequest: Encodable {
+    let body: String
+    let verifiedTradeCandidateId: String?
+    let visibility: String
+}
+
+private struct AnyEncodable: Encodable {
+    private let encodeHandler: (Encoder) throws -> Void
+
+    init(_ value: Encodable) {
+        encodeHandler = value.encode(to:)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        try encodeHandler(encoder)
+    }
+}
+
 enum SeekAPIError: LocalizedError {
     case invalidURL
     case invalidResponse
     case missingAccessToken
     case missingSupabaseAnonKey
     case missingAuthSession
+    case authenticationExpired
     case httpStatus(Int, String?)
 
     var errorDescription: String? {
@@ -390,6 +623,8 @@ enum SeekAPIError: LocalizedError {
             "GrowHouse sign in is not configured yet. Add SUPABASE_ANON_KEY to the backend environment."
         case .missingAuthSession:
             "Supabase did not return a session. Check whether email confirmation is required."
+        case .authenticationExpired:
+            "Your session expired. Sign in again to continue."
         case let .httpStatus(status, body):
             "Request failed with status \(status). \(body ?? "")"
         }
