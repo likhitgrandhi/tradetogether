@@ -436,15 +436,38 @@ export class BrokerageDataService {
       return;
     }
 
+    const referencedIds = await this.postedTradeCandidateIds(duplicateIds);
+    const deletableIds = duplicateIds.filter((id) => !referencedIds.has(id));
+    if (deletableIds.length === 0) {
+      return;
+    }
+
     const { error: deleteError } = await this.db
       .from("verified_trade_candidates")
       .delete()
       .eq("seek_user_id", seekUserId)
-      .in("id", duplicateIds);
+      .in("id", deletableIds);
 
     if (deleteError) {
       throw new Error(`Failed to remove duplicate trade candidates: ${deleteError.message}`);
     }
+  }
+
+  private async postedTradeCandidateIds(candidateIds: string[]): Promise<Set<string>> {
+    const { data, error } = await this.db
+      .from("posts")
+      .select("verified_trade_candidate_id")
+      .in("verified_trade_candidate_id", candidateIds);
+
+    if (error) {
+      throw new Error(`Failed to inspect posted trade candidates: ${error.message}`);
+    }
+
+    return new Set(
+      ((data ?? []) as JsonRecord[])
+        .map((row) => firstString(row.verified_trade_candidate_id))
+        .filter((id): id is string => Boolean(id))
+    );
   }
 
   private async activityToClosedCandidate(
